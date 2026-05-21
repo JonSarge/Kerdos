@@ -2,7 +2,7 @@
 # Mike Spence
 # UK Horse Racing Model
 #
-# commenced: 03.06.2025; updated: 03.06.2025
+# commenced: 03.06.2025; updated: 21.05.2026
 #
 # Actions:
 #  - data processing

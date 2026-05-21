@@ -12,14 +12,13 @@
 #  - PnL report (flat-stake) 
 #  - bet strategy
 #
+# To Do:
+#  - jockey/trainer ratings
+#  - daily price fllucs
 #
 # Ask Mike:
 #  - what markets (place betting?)
 #  - opening fixed prices?
-#  - other project objectives?
-#  - are all features accessible on raceday?
-#  - betting through betfair?
-#  - what type of connection? API?  
 #
 #################################################
 

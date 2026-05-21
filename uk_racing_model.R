@@ -2,7 +2,7 @@
 # Mike Spence
 # UK Horse Racing Model
 #
-# commenced: 03.06.2025; updated: 03.06.2025
+# commenced: 03.06.2025; updated: 21.05.2026
 #
 # Actions:
 #  - data processing
@@ -12,14 +12,13 @@
 #  - PnL report (flat-stake) 
 #  - bet strategy
 #
+# To Do:
+#  - jockey/trainer ratings 
 #
 # Ask Mike:
 #  - what markets (place betting?)
+#  - staking?
 #  - opening fixed prices?
-#  - other project objectives?
-#  - are all features accessible on raceday?
-#  - betting through betfair?
-#  - what type of connection? API?  
 #
 #################################################
 

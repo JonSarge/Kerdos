@@ -13,7 +13,9 @@
 #  - bet strategy
 #
 # To Do:
-#  - jockey/trainer ratings 
+#  - jockey/trainer ratings
+#  - price flucs
+#  - 
 #
 # Ask Mike:
 #  - what markets (place betting?)

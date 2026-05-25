@@ -1,5 +1,5 @@
 #################################################
-# Mike Spence
+# KERDOS
 # UK Horse Racing Model
 #
 # commenced: 03.06.2025; updated: 21.05.2026
@@ -14,12 +14,10 @@
 #
 # To Do:
 #  - jockey/trainer ratings
-#  - price flucs
-#  - 
+#  - daily price fllucs
 #
 # Ask Mike:
 #  - what markets (place betting?)
-#  - staking?
 #  - opening fixed prices?
 #
 #################################################
@@ -45,49 +43,100 @@ ch=function(x){as.character(x)}
 fct=function(x){as.factor(x)}
 nm=function(x){as.numeric(x)}
 hms_times=function(x){format(as.POSIXct(x, origin="1970-01-01",tz="UTC"), '%H:%M')}
+# pnl summary table
+pnl_table <- function(dat, vars, val, conf, prob){
+  x <- dat %>%
+    filter(pick==1,
+           #kelly > k,
+           exp_value > val, 
+           conf_level > conf,
+           winprob_adj > prob,
+    ) %>%
+    group_by(across(all_of(vars))) %>% # bsp_index, bsp_bin
+    summarise(bets=sum(pick), 
+              sr=mean(win),  
+              ave_win_price=mean(na.omit(ave_win_bsp)),
+              profit=sum(profit), 
+              roi=sum(profit)/sum(pick)) 
+  return(x)
+  return(sum(x$profit)/sum(x$bets))
+}
+chart.rpart<-function(model, title){rpart.plot(model, digits=3, type=3, extra = 101, main=title)}
 
-
+# SQL connection
 if ("package:RMySQL" %in% search()) {
   detach("package:RMySQL", unload = TRUE)
 }
 con <- dbConnect(
-       MariaDB(),
-       user     = "avnadmin",
-       password = "AVNS_hiTM-DHel0T90WLNRQx",
-       dbname   = "master-db",
-       host     = "mysql-20d0ecf2-jonsargent15-c8e7.c.aivencloud.com",
-       port     = 24081
-  )
+  MariaDB(),
+  user     = "avnadmin",
+  password = "AVNS_hiTM-DHel0T90WLNRQx",
+  dbname   = "master-db",
+  host     = "mysql-20d0ecf2-jonsargent15-c8e7.c.aivencloud.com",
+  port     = 24081
+)
 
+
+# update data
+loadNewData = 1
+source('uk_racing_data.R')
 
 # LOAD MODEL DATA
-model_data_final <- dbReadTable(con, 'gb_racing_turf') # attach jockey/trainer codes to this
+model_data <- dbGetQuery(con, "select distinct * from gb_racing_data where meetingdate >= '2024-01-01' ") # attach jockey/trainer codes to this
 
-model_data_final <- model_data_final %>%
-  mutate(finish_group = case_when(
-            positionofficial == 1 ~ "Win",
-            positionofficial %in% 2:3 ~ "Place",
-            positionofficial %in% 4:6 ~ "Unplaced", 
-            TRUE ~ "Out_of_Money"
-          ),
-         finish_group = factor(finish_group, levels = c("Win", "Place", "Unplaced", "Out_of_Money")))
+numeric_vars = c('racenumber', 'draw', 'raceclass', 'distance', 'distance_m', 'distancecumulative', 'distancebeaten', 'ispdecimal', 
+                 'betfairwinsp', 'betfairplacesp', 'bsp_run1_fluc', 'fave_price', 'weightcarried', 'daysoff', 'lastrunflat', 'horseage', 'eligibilityagemin', 'bharating', 
+                 'wfa', 'apprenticeclaim', 'weightcarried', 'weight_adjustment', 'ratinglimitlower', 'ratinglimitupper', 'preraceepf', 'pre_race_rating_raw', 
+                 'postrace_rating_raw', 'pre_race_rating_adjusted', 'pre_race_rating_adjusted_y', 'preraceadjustedrating', 'preraceadjustedrating_y', 'preracemasterrating', 
+                 'performancerating', 'ratingsadjustment', 'adj_figure', 'timefigure', 'bharating', 'tissuepricedecimal', 'pacemapdata', 'rating0to100', 'bsp_log', 'bsp_prob', 'numberofrunners', # 'weight_relative', 
+                 'winsatcourse', 'winsatdistance', 'winsatcoursedistance', 'prizefund', 'profit', 'pre_race_rating_adjusted_z', 'pre_race_rating_adjusted_z_adj',
+                 'preraceadjustedrating_z', 'preraceadjustedrating_z_adj', 'prior_ratings_adjusted', 'prior_timefigure') # 'jockey_win_place_ave', 'trainer_win_place_ave', 
 
-# ADD THESE:
-  # Venue
-  # Race number
-  # Jockey/Trainer names and codes
+# target var
+target_var = 'finish_group'
+
+model_data <- pre_model_data %>%
+  # final select
+  select(!na_cols,
+         !zero_cols,
+         all_of(race_vars), 
+         all_of(numeric_vars), 
+         all_of(factor_vars), 
+         ends_with('trainercode'), 
+         target_var)
+
+# check any k-rating na's
+model_data_krating_nas <- model_data %>% filter(is.na(pre_race_rating_adjusted))
+
+# raceclass na's
+raceclass_nas <- model_data %>% filter(is.na(raceclass))
+
+# modelling df w/ NA's - CHECK FILTERS!!!         
+model_data_w_nas <- model_data %>%  
+  # estimate the NA K-Ratings here (prior to final rating_rank)
+  mutate(pre_race_rating_adjusted=ifelse(is.na(pre_race_rating_adjusted),
+                                         pre_race_rating_adjusted_y, pre_race_rating_adjusted)) %>%
+  # add k-rating rank per race here (after any filtering) 
+  group_by(raceid) %>%
+  mutate(rating_rank=dense_rank(-pre_race_rating_adjusted),
+         #rating_rank_y=dense_rank(-pre_race_rating_adjusted_y)
+  ) %>% ungroup() %>%
+  mutate(daysoff = ifelse(is.na(daysoff), 0, daysoff)) %>%
+  select(target_var, raceid, meetingdate, year, horsename, racecode, numberofrunners,
+         model_vars, betfairwinsp, bsp_index, bsp_bin, 
+         positionofficial, preraceadjustedrating, raceclass, racecode, racesurfacename, class_prior) # , jockey_experience
+
 
 # try rating_rank as factor
 
-
 # final modelling data w/o NA's
-# model_data_final <- model_data_w_nas %>% 
-#   filter(!raceid %in% rating_anomalies$raceid, # this accounts for outliers
-#          raceclass %in% c(1:6), # raceclass 1:4 with bsp_prob incl as feature = profitable $2.5-5!!!
-#          numberofrunners >= 6,
-#          racesurfacename == 'Turf'
-#   ) %>%
-#   filter(complete.cases(.)) # some missing raceclasses and pacemapdata
+model_data_final <- model_data_w_nas  %>% 
+   filter(!raceid %in% rating_anomalies$raceid, # this accounts for outliers
+          raceclass %in% c(4:6), # raceclass 1:4 with bsp_prob incl as feature = profitable $2.5-5!!!
+          numberofrunners >= 6,
+          racesurfacename == 'All Weather'
+   ) %>%
+   filter(complete.cases(.)) # some missing raceclasses and pacemapdata
 
 
 ###########################
@@ -117,6 +166,7 @@ model_vars = c(#### numeric vars
   'toprated',
   'pace_pred',
   'jockeyinform', # jockey ability more pronounced for all-weather (winter) 
+  'class_prior',
   #'hottrainer',
   #'tissuepricedecimal'
   #'bharating', 
@@ -138,8 +188,8 @@ test_date_end = '2026-12-31'
 # training sample
 train_data <- model_data_final %>% 
   filter(meetingdate >= train_date_start,
-          meetingdate < test_date_start,
-          rating_rank %in% c(1:6)
+         meetingdate < test_date_start,
+         #rating_rank %in% c(1:6)
   ) %>% 
   select(target_var, model_vars) 
 

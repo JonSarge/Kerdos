@@ -48,7 +48,7 @@ if ("package:RMySQL" %in% search()) {
 con <- dbConnect(
   MariaDB(),
   user     = "avnadmin",
-  password = "AVNS_hiTM-DHel0T90WLNRQx",
+  password = "",
   dbname   = "master-db",
   host     = "mysql-20d0ecf2-jonsargent15-c8e7.c.aivencloud.com",
   port     = 24081

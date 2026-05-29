@@ -64,6 +64,10 @@ pnl_table <- function(dat, vars, val, conf, prob){
 }
 chart.rpart<-function(model, title){rpart.plot(model, digits=3, type=3, extra = 101, main=title)}
 
+# Set up parallel processing
+cl <- makePSOCKcluster(parallel::detectCores() - 1)
+registerDoParallel(cl)
+
 # update data
 loadNewData = 0
 source('uk_racing_data.R')
@@ -71,8 +75,8 @@ source('uk_racing_data.R')
 # target var
 target_var = 'finish_group'
 
+# final model data select
 model_data <- pre_model_data %>%
-  # final select
   select(!na_cols,
          !zero_cols,
          all_of(race_vars), 
@@ -81,21 +85,6 @@ model_data <- pre_model_data %>%
          ends_with('trainercode'), 
          target_var)
 
-# check any k-rating na's
-model_data_krating_nas <- model_data %>% filter(is.na(pre_race_rating_adjusted))
-
-# raceclass na's
-raceclass_nas <- model_data %>% filter(is.na(raceclass))
-
-
-
-###########################
-# Set up parallel processing
-cl <- makePSOCKcluster(parallel::detectCores() - 1)
-registerDoParallel(cl)
-
-# target var
-target_var = 'finish_group'
 
 # Predict finish position using tidymodels
 model_vars = c(#### numeric vars
@@ -116,14 +105,15 @@ model_vars = c(#### numeric vars
   'toprated',
   'pace_pred',
   'jockeyinform', # jockey ability more pronounced for all-weather (winter) 
-  'class_prior',
+  'prizefund',
+  'significantimprover'
+  #'class_prior',
   #'hottrainer',
   #'tissuepricedecimal'
   #'bharating', 
   #'rating0to100'
   #'ratingstars', # SIGNIFICANT
   #'rating123',
-  'significantimprover'
 )
 
 
@@ -136,20 +126,18 @@ model_data_w_nas <- model_data %>%
   mutate(rating_rank=dense_rank(-pre_race_rating_adjusted)) %>% ungroup() %>%
   mutate(daysoff = ifelse(is.na(daysoff), 0, daysoff)) %>%
   select(target_var, raceid, meetingdate, year, horsename, racecode, numberofrunners,
-         all_of(model_vars), betfairwinsp, bsp_index, bsp_bin, 
-         positionofficial, preraceadjustedrating, raceclass, racecode, racesurfacename, class_prior) # , jockey_experience
-
-# try rating_rank as factor
-
-# final modelling data w/o NA's
-model_data_final <- model_data_w_nas  %>% 
+         all_of(model_vars), betfairwinsp, bsp_index, bsp_bin, positionofficial, 
+         preraceadjustedrating, raceclass, racecode, racesurfacename, class_prior) %>%
+  # initial model data filtering
   filter(!raceid %in% rating_anomalies$raceid, # this accounts for outliers
          raceclass %in% c(1:6), # raceclass 1:4 with bsp_prob incl as feature = profitable $2.5-5!!!
-         numberofrunners >= 6,
          racesurfacename == 'Turf'
-  ) %>%
-  filter(complete.cases(.)) # some missing raceclasses and pacemapdata
+  )
 
+# model cols w/ na's
+model_data_nas <- model_data_w_nas %>% select(where(~ any(is.na(.x))))
+# final data (na's removed)
+model_data_final <- model_data_w_nas %>% filter(complete.cases(.)) # some missing raceclasses and pacemapdata
 
 # model formula
 model_formula = as.formula(paste(target_var, '~', paste(model_vars, collapse = " + ")))
@@ -158,10 +146,11 @@ train_date_start = '2024-01-01'
 test_date_start = '2026-01-01' # run from 1st June with training data up to 30th May
 test_date_end = '2026-12-31'
 
-# training sample
+# training sample w final filtering
 train_data <- model_data_final %>% 
   filter(meetingdate >= train_date_start,
          meetingdate < test_date_start,
+         numberofrunners >= 6,
          #rating_rank %in% c(1:6)
   ) %>% 
   select(target_var, model_vars) 
@@ -186,8 +175,8 @@ source('uk_racing_model_tune.R') # tuning script
 
 # gerenerate test pl df 
 test_pnl_dat <- bind_cols(test_data, 
-                          winprob=predictions$.pred_Win,
-                          winclass=predictions$.pred_class) %>%
+      winprob=predictions$.pred_Win,
+      winclass=predictions$.pred_class) %>%
    group_by(raceid) %>%
    mutate(
      winprob_adj=winprob/sum(winprob),

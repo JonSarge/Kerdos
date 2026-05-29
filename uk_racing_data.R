@@ -2,7 +2,7 @@
 # Mike Spence
 # UK Horse Racing Model
 #
-# commenced: 03.06.2025; updated: 03.06.2025
+# commenced: 03.06.2025; updated: 03.06.2026
 #
 # Actions:
 #  - data processing
@@ -11,7 +11,6 @@
 #  - model accuracy comparison
 #  - PnL report (flat-stake) 
 #  - bet strategy
-#
 #
 # Ask Mike:
 #  - what markets (place betting?)
@@ -22,7 +21,7 @@
 #################################################
 
 cdir = 'C:/Users/jonsa/OneDrive/STATS_ON/Projects/Mike_Spence/Kerdos'
-cdir = 'C:/Users/jonathan.sargent/R/Kerdos'
+#cdir = 'C:/Users/jonathan.sargent/R/Kerdos'
 setwd(cdir)
 
 library(dplyr)
@@ -46,7 +45,7 @@ if ("package:RMySQL" %in% search()) {
 con <- dbConnect(
   MariaDB(),
   user     = "avnadmin",
-  password = "",
+  password = "AVNS_hiTM-DHel0T90WLNRQx",
   dbname   = "master-db",
   host     = "mysql-20d0ecf2-jonsargent15-c8e7.c.aivencloud.com",
   port     = 24081
@@ -59,7 +58,7 @@ con <- dbConnect(
 # load('gb_racing_2022_2026.rda')
 
 # load relevant raw Kerdos data (pre-feature engineering)
-gb_racing_2023_2026 <- dbGetQuery(con, "select distinct * from gb_racing_data where meetingdate >= '2026-01-01'")
+gb_racing_2023_2026 <- dbGetQuery(con, "select distinct * from gb_racing_data where meetingdate >= '2024-01-01'")
 
 # load recent raw data from Mike and select relevant (stored) cols only
 gb_data_recent <- read.csv("gb_recent_data.csv") %>% select(names(gb_racing_2023_2026))
@@ -164,10 +163,10 @@ hist(tf_ratings$preraceadjustedrating, main='Timeform Master Rating', xlab='Rati
 numeric_vars = c('racenumber', 'draw', 'raceclass', 'distance', 'distance_m', 'distancecumulative', 'distancebeaten', 'ispdecimal', 
                  'betfairwinsp', 'betfairplacesp', 'bsp_run1_fluc', 'fave_price', 'weightcarried', 'daysoff', 'lastrunflat', 'horseage', 'eligibilityagemin', 'bharating', 
                  'wfa', 'apprenticeclaim', 'weightcarried', 'weight_adjustment', 'ratinglimitupper', 'preraceepf', 'pre_race_rating_raw', 
-                 'postrace_rating_raw', 'pre_race_rating_adjusted', 'pre_race_rating_adjusted_y', 'preraceadjustedrating', 'preraceadjustedrating_y', 'preracemasterrating', 
+                 'postrace_rating_raw', 'pre_race_rating_adjusted', 'pre_race_rating_adjusted_y', 'preraceadjustedrating', 'preracemasterrating', 
                  'performancerating', 'ratingsadjustment', 'adj_figure', 'timefigure', 'bharating', 'tissuepricedecimal', 'pacemapdata', 'rating0to100', 'bsp_log', 'bsp_prob', 'numberofrunners', # 'weight_relative', 
-                 'winsatcourse', 'winsatdistance', 'winsatcoursedistance', 'prizefund', 'profit', 'pre_race_rating_adjusted_z', 'pre_race_rating_adjusted_z_adj',
-                 'preraceadjustedrating_z', 'preraceadjustedrating_z_adj', 'prior_ratings_adjusted', 'prior_timefigure') # 'jockey_win_place_ave', 'trainer_win_place_ave', 
+                 'winsatcourse', 'winsatdistance', 'winsatcoursedistance', 'prizefund', 'profit', 'pre_race_rating_adjusted_z', 'pre_race_rating_adjusted_z_adj'
+                 ) # 'jockey_win_place_ave', 'trainer_win_place_ave', 
 
 
 # factor vars
@@ -179,14 +178,13 @@ factor_vars = c('positionofficial', 'win', 'bsp_index', 'bsp_bin', 'eligibilitya
 
 # leave these out
 excl_vars <- c('bfmarketid',	'scheduledtimeofracelocal',	'racetitle',	'distancetext',	'distanceyards',	'distancefurlongs',	
-               'courseextraid',	'eligibilityagemax',	'eligibilitysexlimit',	'ratinglimitlower',	'resultsstatus',	
-               'trw1',	'trw2',	'trw3',	'trw4',	'trw5',	'tfwfa',	'positionstatus',	'ispfavtext',	'ownercode',	'ownerfullname',
-               'preracemastersymbol',	'performancesymbol',	'tissuepricefractional',	'statusdescription',	
-               'statusid',	'betfairbackprice',	'crsdiswinfavtext',	'bfselectionid',	'sportsbookdecimalodds',	'sportsbookfractionalodds',	
-               'masterinplaysymbol',	'pre_race_rating_symbol',	'sirename',	'sirehistoricalrating',	'sirehistoricalsymbol',	'sireratingdisplay',	
-               'damname',	'damhistoricalrating',	'damhistoricalsymbol',	'damratingdisplay',	'damsirename',	'damsirehistoricalrating',	
-               'damsirehistoricalsymbol',	'damsireratingdisplay',	'foalingdate',	'sirecd',	'siregoing', 'pacemapsidealposition', 'hotrace', 
-               'pacemapsidealposition', 'ispfractional', 'postrace_rating_symbol', 'pre_race_rating_symbol_for_16')
+               'courseextraid',	'eligibilityagemax',	'ratinglimitlower',	'resultsstatus', 'trw1',	'trw2',	'trw3',	'trw4',	'trw5',	
+               'tfwfa',	'positionstatus',	'ispfavtext',	'ownercode',	'ownerfullname', 'performancesymbol',	'tissuepricefractional',	
+               'statusdescription', 'statusid',	'betfairbackprice',	'crsdiswinfavtext',	'bfselectionid',	'sportsbookdecimalodds',	
+               'sportsbookfractionalodds', 'masterinplaysymbol',	'pre_race_rating_symbol',	'sirehistoricalrating',	
+               'sirehistoricalsymbol',	'sireratingdisplay', 'damname',	'damhistoricalrating',	'damhistoricalsymbol',	'damratingdisplay',	
+               'damsirename',	'damsirehistoricalrating', 'damsirehistoricalsymbol',	'damsireratingdisplay',	'foalingdate',	'sirecd',	
+               'pacemapsidealposition', 'ispfractional', 'postrace_rating_symbol')
 
 goingofficial_factors <- gb_flat_all_cols %>% count(goingofficial)
 
@@ -248,11 +246,18 @@ print(na_cols)
 zero_cols <- na_zero_cols_df %>% summarise_all(~all(.==0)) %>% select_if(~.) %>% names()
 print(zero_cols)
 
+# check any k-rating na's
+k_rating_nas <- pre_model_data %>% filter(is.na(pre_race_rating_adjusted))
+# raceclass na's
+raceclass_nas <- pre_model_data %>% filter(is.na(raceclass))
+
+
 # dupe records
 pre_model_data_dupes <- pre_model_data %>%
   group_by(raceid, horsecode) %>%
   filter(n()>1) %>% ungroup()
 if(nrow(pre_model_data_dupes)>0) cat("CHECK RUNNER DUPES!!!")
+
 
 # attach new data
 if(loadNewData == 1){
@@ -281,7 +286,4 @@ if(loadNewData == 1){
     #save(pre_model_data, file='gb_racing_model_data.rda')
   }
 }
-
-
-
 

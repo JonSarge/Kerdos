@@ -65,19 +65,8 @@ pnl_table <- function(dat, vars, val, conf, prob){
 chart.rpart<-function(model, title){rpart.plot(model, digits=3, type=3, extra = 101, main=title)}
 
 # update data
-loadNewData = 1
+loadNewData = 0
 source('uk_racing_data.R')
-
-# LOAD MODEL DATA
-#model_data <- dbGetQuery(con, "select distinct * from gb_racing_data where meetingdate >= '2024-01-01' ") # attach jockey/trainer codes to this
-
-numeric_vars = c('racenumber', 'draw', 'raceclass', 'distance', 'distance_m', 'distancecumulative', 'distancebeaten', 'ispdecimal', 
-                 'betfairwinsp', 'betfairplacesp', 'bsp_run1_fluc', 'fave_price', 'weightcarried', 'daysoff', 'lastrunflat', 'horseage', 'eligibilityagemin', 'bharating', 
-                 'wfa', 'apprenticeclaim', 'weightcarried', 'weight_adjustment', 'ratinglimitupper', 'preraceepf', 'pre_race_rating_raw', 
-                 'postrace_rating_raw', 'pre_race_rating_adjusted', 'pre_race_rating_adjusted_y', 'preraceadjustedrating', 'preraceadjustedrating_y', 'preracemasterrating', 
-                 'performancerating', 'ratingsadjustment', 'adj_figure', 'timefigure', 'bharating', 'tissuepricedecimal', 'pacemapdata', 'rating0to100', 'bsp_log', 'bsp_prob', 'numberofrunners', # 'weight_relative', 
-                 'winsatcourse', 'winsatdistance', 'winsatcoursedistance', 'prizefund', 'profit', 'pre_race_rating_adjusted_z', 'pre_race_rating_adjusted_z_adj',
-                 'preraceadjustedrating_z', 'preraceadjustedrating_z_adj', 'prior_ratings_adjusted', 'prior_timefigure') # 'jockey_win_place_ave', 'trainer_win_place_ave', 
 
 # target var
 target_var = 'finish_group'
@@ -141,18 +130,14 @@ model_vars = c(#### numeric vars
 # modelling df w/ NA's - CHECK FILTERS!!!         
 model_data_w_nas <- model_data %>%  
   # estimate the NA K-Ratings here (prior to final rating_rank)
-  mutate(pre_race_rating_adjusted=ifelse(is.na(pre_race_rating_adjusted),
-                                         pre_race_rating_adjusted_y, pre_race_rating_adjusted)) %>%
+  mutate(pre_race_rating_adjusted=ifelse(is.na(pre_race_rating_adjusted), pre_race_rating_adjusted_y, pre_race_rating_adjusted)) %>%
   # add k-rating rank per race here (after any filtering) 
   group_by(raceid) %>%
-  mutate(rating_rank=dense_rank(-pre_race_rating_adjusted),
-         #rating_rank_y=dense_rank(-pre_race_rating_adjusted_y)
-  ) %>% ungroup() %>%
+  mutate(rating_rank=dense_rank(-pre_race_rating_adjusted)) %>% ungroup() %>%
   mutate(daysoff = ifelse(is.na(daysoff), 0, daysoff)) %>%
   select(target_var, raceid, meetingdate, year, horsename, racecode, numberofrunners,
          all_of(model_vars), betfairwinsp, bsp_index, bsp_bin, 
          positionofficial, preraceadjustedrating, raceclass, racecode, racesurfacename, class_prior) # , jockey_experience
-
 
 # try rating_rank as factor
 
@@ -172,7 +157,6 @@ model_formula = as.formula(paste(target_var, '~', paste(model_vars, collapse = "
 train_date_start = '2024-01-01'
 test_date_start = '2026-01-01' # run from 1st June with training data up to 30th May
 test_date_end = '2026-12-31'
-
 
 # training sample
 train_data <- model_data_final %>% 

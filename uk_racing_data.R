@@ -160,6 +160,16 @@ hist(tf_ratings$preraceadjustedrating, main='Timeform Master Rating', xlab='Rati
 
 #### Feature engineering ####
 
+# numeric vars
+numeric_vars = c('racenumber', 'draw', 'raceclass', 'distance', 'distance_m', 'distancecumulative', 'distancebeaten', 'ispdecimal', 
+                 'betfairwinsp', 'betfairplacesp', 'bsp_run1_fluc', 'fave_price', 'weightcarried', 'daysoff', 'lastrunflat', 'horseage', 'eligibilityagemin', 'bharating', 
+                 'wfa', 'apprenticeclaim', 'weightcarried', 'weight_adjustment', 'ratinglimitupper', 'preraceepf', 'pre_race_rating_raw', 
+                 'postrace_rating_raw', 'pre_race_rating_adjusted', 'pre_race_rating_adjusted_y', 'preraceadjustedrating', 'preraceadjustedrating_y', 'preracemasterrating', 
+                 'performancerating', 'ratingsadjustment', 'adj_figure', 'timefigure', 'bharating', 'tissuepricedecimal', 'pacemapdata', 'rating0to100', 'bsp_log', 'bsp_prob', 'numberofrunners', # 'weight_relative', 
+                 'winsatcourse', 'winsatdistance', 'winsatcoursedistance', 'prizefund', 'profit', 'pre_race_rating_adjusted_z', 'pre_race_rating_adjusted_z_adj',
+                 'preraceadjustedrating_z', 'preraceadjustedrating_z_adj', 'prior_ratings_adjusted', 'prior_timefigure') # 'jockey_win_place_ave', 'trainer_win_place_ave', 
+
+
 # factor vars
 factor_vars = c('positionofficial', 'win', 'bsp_index', 'bsp_bin', 'eligibilityagemin', 'horsegender', 'distancetype', 'racetype', 'raceclass', 'run1_raceclass', 
                 'racesurfacename',  'racecode', 'goingofficial', 'goingofficial_adj', 'going', 'goingabbrev',  'iphintsoverallpace', 'equipmentdescription',

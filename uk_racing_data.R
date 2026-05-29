@@ -21,8 +21,8 @@
 
 #################################################
 
-#cdir = 'C:/Users/jonsa/OneDrive/STATS_ON/Projects/Mike_Spence/Kerdos'
-#cdir = 'C:/Users/jonathan.sargent/R/Kerdos'
+cdir = 'C:/Users/jonsa/OneDrive/STATS_ON/Projects/Mike_Spence/Kerdos'
+cdir = 'C:/Users/jonathan.sargent/R/Kerdos'
 setwd(cdir)
 
 library(dplyr)

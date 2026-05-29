@@ -22,7 +22,8 @@
 #
 #################################################
 
-cdir = 'C:/Users/jonsa/OneDrive/STATS_ON/Projects/Mike_Spence'
+#cdir = 'C:/Users/jonsa/OneDrive/STATS_ON/Projects/Mike_Spence'
+cdir = 'C:/Users/jonathan.sargent/R/Kerdos'
 setwd(cdir)
 
 library(dplyr)
@@ -63,30 +64,16 @@ pnl_table <- function(dat, vars, val, conf, prob){
 }
 chart.rpart<-function(model, title){rpart.plot(model, digits=3, type=3, extra = 101, main=title)}
 
-# SQL connection
-if ("package:RMySQL" %in% search()) {
-  detach("package:RMySQL", unload = TRUE)
-}
-con <- dbConnect(
-  MariaDB(),
-  user     = "avnadmin",
-  password = "AVNS_hiTM-DHel0T90WLNRQx",
-  dbname   = "master-db",
-  host     = "mysql-20d0ecf2-jonsargent15-c8e7.c.aivencloud.com",
-  port     = 24081
-)
-
-
 # update data
 loadNewData = 1
 source('uk_racing_data.R')
 
 # LOAD MODEL DATA
-model_data <- dbGetQuery(con, "select distinct * from gb_racing_data where meetingdate >= '2024-01-01' ") # attach jockey/trainer codes to this
+#model_data <- dbGetQuery(con, "select distinct * from gb_racing_data where meetingdate >= '2024-01-01' ") # attach jockey/trainer codes to this
 
 numeric_vars = c('racenumber', 'draw', 'raceclass', 'distance', 'distance_m', 'distancecumulative', 'distancebeaten', 'ispdecimal', 
                  'betfairwinsp', 'betfairplacesp', 'bsp_run1_fluc', 'fave_price', 'weightcarried', 'daysoff', 'lastrunflat', 'horseage', 'eligibilityagemin', 'bharating', 
-                 'wfa', 'apprenticeclaim', 'weightcarried', 'weight_adjustment', 'ratinglimitlower', 'ratinglimitupper', 'preraceepf', 'pre_race_rating_raw', 
+                 'wfa', 'apprenticeclaim', 'weightcarried', 'weight_adjustment', 'ratinglimitupper', 'preraceepf', 'pre_race_rating_raw', 
                  'postrace_rating_raw', 'pre_race_rating_adjusted', 'pre_race_rating_adjusted_y', 'preraceadjustedrating', 'preraceadjustedrating_y', 'preracemasterrating', 
                  'performancerating', 'ratingsadjustment', 'adj_figure', 'timefigure', 'bharating', 'tissuepricedecimal', 'pacemapdata', 'rating0to100', 'bsp_log', 'bsp_prob', 'numberofrunners', # 'weight_relative', 
                  'winsatcourse', 'winsatdistance', 'winsatcoursedistance', 'prizefund', 'profit', 'pre_race_rating_adjusted_z', 'pre_race_rating_adjusted_z_adj',
@@ -111,32 +98,6 @@ model_data_krating_nas <- model_data %>% filter(is.na(pre_race_rating_adjusted))
 # raceclass na's
 raceclass_nas <- model_data %>% filter(is.na(raceclass))
 
-# modelling df w/ NA's - CHECK FILTERS!!!         
-model_data_w_nas <- model_data %>%  
-  # estimate the NA K-Ratings here (prior to final rating_rank)
-  mutate(pre_race_rating_adjusted=ifelse(is.na(pre_race_rating_adjusted),
-                                         pre_race_rating_adjusted_y, pre_race_rating_adjusted)) %>%
-  # add k-rating rank per race here (after any filtering) 
-  group_by(raceid) %>%
-  mutate(rating_rank=dense_rank(-pre_race_rating_adjusted),
-         #rating_rank_y=dense_rank(-pre_race_rating_adjusted_y)
-  ) %>% ungroup() %>%
-  mutate(daysoff = ifelse(is.na(daysoff), 0, daysoff)) %>%
-  select(target_var, raceid, meetingdate, year, horsename, racecode, numberofrunners,
-         model_vars, betfairwinsp, bsp_index, bsp_bin, 
-         positionofficial, preraceadjustedrating, raceclass, racecode, racesurfacename, class_prior) # , jockey_experience
-
-
-# try rating_rank as factor
-
-# final modelling data w/o NA's
-model_data_final <- model_data_w_nas  %>% 
-   filter(!raceid %in% rating_anomalies$raceid, # this accounts for outliers
-          raceclass %in% c(4:6), # raceclass 1:4 with bsp_prob incl as feature = profitable $2.5-5!!!
-          numberofrunners >= 6,
-          racesurfacename == 'All Weather'
-   ) %>%
-   filter(complete.cases(.)) # some missing raceclasses and pacemapdata
 
 
 ###########################
@@ -177,6 +138,34 @@ model_vars = c(#### numeric vars
 )
 
 
+# modelling df w/ NA's - CHECK FILTERS!!!         
+model_data_w_nas <- model_data %>%  
+  # estimate the NA K-Ratings here (prior to final rating_rank)
+  mutate(pre_race_rating_adjusted=ifelse(is.na(pre_race_rating_adjusted),
+                                         pre_race_rating_adjusted_y, pre_race_rating_adjusted)) %>%
+  # add k-rating rank per race here (after any filtering) 
+  group_by(raceid) %>%
+  mutate(rating_rank=dense_rank(-pre_race_rating_adjusted),
+         #rating_rank_y=dense_rank(-pre_race_rating_adjusted_y)
+  ) %>% ungroup() %>%
+  mutate(daysoff = ifelse(is.na(daysoff), 0, daysoff)) %>%
+  select(target_var, raceid, meetingdate, year, horsename, racecode, numberofrunners,
+         all_of(model_vars), betfairwinsp, bsp_index, bsp_bin, 
+         positionofficial, preraceadjustedrating, raceclass, racecode, racesurfacename, class_prior) # , jockey_experience
+
+
+# try rating_rank as factor
+
+# final modelling data w/o NA's
+model_data_final <- model_data_w_nas  %>% 
+  filter(!raceid %in% rating_anomalies$raceid, # this accounts for outliers
+         raceclass %in% c(1:6), # raceclass 1:4 with bsp_prob incl as feature = profitable $2.5-5!!!
+         numberofrunners >= 6,
+         racesurfacename == 'Turf'
+  ) %>%
+  filter(complete.cases(.)) # some missing raceclasses and pacemapdata
+
+
 # model formula
 model_formula = as.formula(paste(target_var, '~', paste(model_vars, collapse = " + ")))
 # train/test dates
@@ -209,7 +198,7 @@ min_n = 10 # specify minimum tree n sequenc
 tree_depth = 3
 learn_rate = 0.1
 loss_reduction = 0.01
-source('uk_racing_model_tune_v3.R') # tuning script
+source('uk_racing_model_tune.R') # tuning script
 
 # gerenerate test pl df 
 test_pnl_dat <- bind_cols(test_data, 

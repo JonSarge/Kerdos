@@ -19,8 +19,8 @@
 #  - are all features accessible on raceday?
 #################################################
 
-cdir = 'C:/Users/jonsa/OneDrive/STATS_ON/Projects/Mike_Spence/Kerdos'
-#cdir = 'C:/Users/jonathan.sargent/R/Kerdos'
+#cdir = 'C:/Users/jonsa/OneDrive/STATS_ON/Projects/Mike_Spence/Kerdos'
+cdir = 'C:/Users/jonathan.sargent/Documents/Kerdos'
 setwd(cdir)
 
 library(dplyr)
@@ -57,7 +57,7 @@ con <- dbConnect(
   # load('gb_racing_2022_2026.rda')
 
 # load relevant raw Kerdos data (pre-feature engineering)
-gb_racing_sql <- dbGetQuery(con, "select distinct * from gb_racing_data where meetingdate >= '2024-01-01'")
+gb_racing_sql <- dbGetQuery(con, "select distinct * from gb_racing_data where scheduledtimeofracegmt >= '2024-01-01'")
 
 # load recent raw data from Mike and select relevant (stored) cols only
 gb_data_recent <- read.csv("gb_recent_data.csv") %>% select(names(gb_racing_sql))
@@ -74,15 +74,37 @@ gb_flat_all_cols <- gb_racing_sql %>%
   # append recent data
   {if (loadNewData == 1) bind_rows(., gb_data_recent) else .} %>%
   
+  # primary model filters
   filter(countrycode=='GBR',
          racetype=='Flat',
-         !courseid %in% c(697), # remove MURRAY BRIDGE
          positionofficial != 0 # remove DNF
   ) %>%
   
   # add relevant vars (win, profit etc)
-  mutate(year=year(meetingdate),
-         distance_m=distance*201.168, # convert to metres
+  mutate(meetingdate=as.Date(scheduledtimeofracegmt),
+         year=year(scheduledtimeofracegmt),
+         # target variable
+         finish_group = case_when(
+           positionofficial == 1 ~ "Win",
+           positionofficial %in% 2:3 ~ "Place",
+           positionofficial %in% 4:6 ~ "Unplaced", 
+           TRUE ~ "Out_of_Money"
+         ),
+         finish_group = factor(finish_group, levels = c("Win", "Place", "Unplaced", "Out_of_Money")),
+         # Create relative weight feature
+         weight_relative = scale(weightcarried)[,1],
+         # pace prediction
+         pace_pred = nm(str_extract(pacemapdata, '\\d+$')),
+         # class diff - fix NA's in run1_raceclass with regression model
+         class_prior = case_when(
+           raceclass > run1_raceclass ~ 'Down',
+           raceclass < run1_raceclass ~ 'Up',
+           raceclass == run1_raceclass ~ 'Same',
+           TRUE ~ NA  
+         ),
+         # convert distance to meters
+         distance_m=distance*201.168,
+         # win vars
          win=ifelse(positionofficial == 1, 1, 0),
          win_place=ifelse(positionofficial %in% c(1, 2, 3), 1, 0),
          # profit for roi
@@ -93,14 +115,20 @@ gb_flat_all_cols <- gb_racing_sql %>%
          # Log transform odds to reduce skewness
          bsp_log=log(betfairwinsp + 1),
          # market implied prob
-         bsp_prob=1/betfairwinsp
+         bsp_prob=1/betfairwinsp,
+         # bsp run1 to run0 bsp fluc
+         run1_betfairwinsp = ifelse(is.na(run1_betfairwinsp)|run1_betfairwinsp==0, betfairwinsp, run1_betfairwinsp),
+         bsp_run1_fluc = (run1_betfairwinsp-betfairwinsp)/run1_betfairwinsp,
+         bsp_run1_fluc = ifelse(bsp_run1_fluc < -2, -2, bsp_run1_fluc)
          # cap bsp @ $100???
          #bsp = ifelse(betfairwinsp >= 100, 100, betfairwinsp),
   ) %>%
-    
-  arrange(raceid, scheduledtimeofracegmt)
+  # race-specific vars
+  group_by(raceid) %>%
+  mutate(fave_price=min(ispdecimal)) %>% 
+  ungroup() %>%
+  arrange(scheduledtimeofracegmt)
 
-check_dates <- gb_flat_all_cols %>% count(meetingdate)
 
 # dupe records
 pre_model_data_dupes <- gb_flat_all_cols %>%
@@ -115,12 +143,13 @@ if(nrow(pre_model_data_dupes)>0) cat("CHECK RUNNER DUPES!!!")
 # Where a Timeform rating in our dataset is 0, it is correct and the Timeform rating is 0 in the API
 # This is where a horse is having its first run in a race type, hasn’t run in this race type for a long time OR there is not enough data for Timeform to go on
 
-race_vars <- c('raceid', 'racenumber', 'meetingdate', 'scheduledtimeofracegmt', 'coursename', 'horsecode', 'horsename', 'positionofficial')
+race_vars <- c('raceid', 'racenumber', 'meetingdate', 'scheduledtimeofracegmt', 'coursename', 
+               'horsecode', 'horsename', 'positionofficial')
 
 # CHECK: uncorrelated kerdos & tf
 rating_anomalies <- gb_flat_all_cols %>%
   mutate(rating_diff_perc = (pre_race_rating_adjusted-preraceadjustedrating)/preraceadjustedrating) %>%
-   filter(abs(rating_diff_perc) > 0.5 |
+  filter(abs(rating_diff_perc) > 0.5 |
           preraceadjustedrating %in% c(0, 999)) %>%
   select(raceid, horsecode, rating_diff_perc, pre_race_rating_adjusted, preraceadjustedrating, 
          ends_with(c('post_race_rating_adjusted', 'performancerating')))
@@ -164,88 +193,25 @@ hist(tf_ratings$preraceadjustedrating, main='Timeform Master Rating', xlab='Rati
 
 #### Feature engineering ####
 
-# factor vars
-factor_vars = c('racenumber', 'draw', 'positionofficial', 'horsegender', 'distancetype', 'racetype', 'raceclass',  
-                'racesurfacename',  'racecode', 'goingofficial', 'going',  'iphintsoverallpace', 'equipmentdescription', 'pacemapdata',
-                'jockeycode', 'jockeyfullname', 'trainercode', 'trainerfullname', 'ratingstars', 'rating123', 'significantimprover', 'jockeyinform', 
-                'toprated', 'hottrainer', 'eligibilitysexlimit', 'preracemastersymbol', 'sirename',
-                'siregoing', 'hotrace', 'pre_race_rating_symbol_for_16'
-) # 'pacemapsidealposition', 'pre_race_rating_symbol', 
-
-
-# generate pre-model df with added features
-pre_model_data <- gb_flat_all_cols %>%
-  mutate(
-    # Log transform odds to reduce skewness
-    #bsp = ifelse(betfairwinsp >= 100, 100, betfairwinsp),
-    # Create relative weight feature
-    weight_relative = scale(weightcarried)[,1],
-    # target variable
-    finish_group = case_when(
-      positionofficial == 1 ~ "Win",
-      positionofficial %in% 2:3 ~ "Place",
-      positionofficial %in% 4:6 ~ "Unplaced", 
-      TRUE ~ "Out_of_Money"
-    ),
-    finish_group = factor(finish_group, levels = c("Win", "Place", "Unplaced", "Out_of_Money")),
-    # going official adj
-    goingofficial_adj = trimws(sub("\\(.*", "", goingofficial)),
-    goingofficial=tolower(goingofficial),
-    # pace prediction
-    pace_pred = nm(str_extract(pacemapdata, '\\d+$')),
-    # class diff - fix NA's in run1_raceclass with regression model
-    class_prior = case_when(
-      raceclass > run1_raceclass ~ 'Down',
-      raceclass < run1_raceclass ~ 'Up',
-      raceclass == run1_raceclass ~ 'Same',
-      TRUE ~ NA  
-      )
-  ) %>%
-  # bsp flucs
-  mutate(run1_betfairwinsp = ifelse(is.na(run1_betfairwinsp)|run1_betfairwinsp==0, betfairwinsp, run1_betfairwinsp),
-         bsp_run1_fluc = (run1_betfairwinsp-betfairwinsp)/run1_betfairwinsp,
-         bsp_run1_fluc = ifelse(bsp_run1_fluc < -2, -2, bsp_run1_fluc)) %>%
-  # race-specific vars (see scaled ratings in model df)
-  group_by(raceid) %>%
-  mutate(fave_price=min(ispdecimal)) %>% 
-  ungroup() %>%
-  arrange(scheduledtimeofracegmt) %>%
-  # barrier pos e.g. 1_3 = inside, 10+ = wide etc
-  mutate(across(all_of(factor_vars), ~fct(.))) %>%
-  # ESTIMATE MISSUING K/TF RATINGS:
-  mutate(k_rating_pred = predict(k_na_model, .),
-         pre_race_rating_adjusted_y = round(ifelse(is.na(pre_race_rating_adjusted), k_rating_pred, pre_race_rating_adjusted)),
-         tf_rating_pred = predict(tf_na_model, .)) %>%
-  # Scale ratings per field (try normalising by raceclass @ venue???)
-  group_by(raceid) %>%
-  mutate(pre_race_rating_diff = pre_race_rating_adjusted_y - mean(pre_race_rating_adjusted_y),
-         pre_race_rating_adjusted_z = nm(scale(pre_race_rating_adjusted_y)), # z-value
-         pre_race_rating_adjusted_z_adj = pnorm(pre_race_rating_adjusted_z) * 100, # 0-100 adj
-         ) %>% ungroup() %>%
-  relocate(pre_race_rating_adjusted_z, pre_race_rating_adjusted_z_adj, .after=pre_race_rating_adjusted)
-  
-# CHECK all NA/Zero columns
-na_zero_cols_df <- gb_flat_all_cols %>% select(raceid, scheduledtimeofracegmt, coursename, where(~all(.==0, na.rm=TRUE)))
-na_cols <- na_zero_cols_df %>% summarise_all(~all(is.na(.))) %>% select_if(~.) %>% names()
-print(na_cols)
-zero_cols <- na_zero_cols_df %>% summarise_all(~all(.==0)) %>% select_if(~.) %>% names()
-print(zero_cols)
-
-# check any k-rating na's
-k_rating_nas <- pre_model_data %>% filter(is.na(pre_race_rating_adjusted))
-# raceclass na's
-raceclass_nas <- pre_model_data %>% filter(is.na(raceclass))
-# run1_raceclass na's
-run1_raceclass_nas <- pre_model_data %>% filter(is.na(run1_raceclass), run1_meetingdate!='')
-
 # numeric vars
 numeric_vars = c('distance', 'distancecumulative', 'distancebeaten', 'ispdecimal', 'betfairwinsp', 'betfairplacesp', 'weightcarried', 
-                 'daysoff', 'lastrunflat', 'horseage', 'eligibilityagemin', 'bharating', 
+                 'daysoff', 'lastrunflat', 'horseage', 'eligibilityagemin', 'bharating', 'bsp_run1_fluc',
                  'wfa', 'apprenticeclaim', 'weightcarried', 'weight_adjustment', 'ratinglimitupper', 'preraceepf', 'pre_race_rating_raw', 
                  'postrace_rating_raw', 'pre_race_rating_adjusted', 'preraceadjustedrating', 'preracemasterrating', 
                  'performancerating', 'ratingsadjustment', 'adj_figure', 'timefigure', 'bharating', 'tissuepricedecimal', 'rating0to100', 'numberofrunners', # 'weight_relative', 
                  'winsatcourse', 'winsatdistance', 'winsatcoursedistance', 'prizefund'
 )
+
+# prior run vars
+run1_vars = c('run1_raceid', 'run1_meetingdate', 'run1_coursename', 'run1_positionofficial', 'run1_raceclass', 'run1_racecode', 'run1_racetype',
+              'run1_ratinglimitupper', 'run1_prizefund', 'run1_racesurfacename', 'run1_betfairwinsp')
+
+# factor vars
+factor_vars = c('racenumber', 'draw', 'positionofficial', 'horsegender', 'distancetype', 'racetype', 'raceclass',  
+                'racesurfacename',  'racecode', 'going',  'iphintsoverallpace', 'pacemapdata',
+                'jockeycode', 'jockeyfullname', 'trainercode', 'trainerfullname', 'ratingstars', 'rating123', 'significantimprover', 'jockeyinform', 
+                'toprated', 'hottrainer', 'eligibilitysexlimit', 'preracemastersymbol', 'hotrace', 'pre_race_rating_symbol_for_16'
+) # 'pacemapsidealposition', 'pre_race_rating_symbol', 
 
 # leave these out
 excl_vars <- c('bfmarketid', 'courseabbrev',	'scheduledtimeofracelocal',	'racetitle',	'distancetext',	'distanceyards',	'distancefurlongs',	
@@ -258,68 +224,74 @@ excl_vars <- c('bfmarketid', 'courseabbrev',	'scheduledtimeofracelocal',	'raceti
                'pacemapsidealposition', 'ispfractional', 'postrace_rating_symbol', 'jockeyuplift', 'traineruplift', 'horsesforcoursepos', 
                'horsesforcoursesneg', 'warninghorse', 'bsp_run1_fluc')
 
-run1_vars = c('run1_raceid', 'run1_meetingdate', 'run1_coursename', 'run1_positionofficial', 'run1_raceclass', 'run1_racecode', 'run1_racetype',
-              'run1_ratinglimitupper', 'run1_prizefund', 'run1_racesurfacename', 'run1_betfairwinsp')
-
-# final model data select
-model_data <- pre_model_data %>%
-  select(#!na_cols,
-         #!zero_cols,
-         #all_of(race_vars), 
-         #all_of(numeric_vars), 
-         #all_of(factor_vars),
-         !c(matches("^run\\d+"), all_of(excl_vars), na_cols, zero_cols),
-         run1_vars,
-  ) %>%
-  relocate(raceid, meetingdate, scheduledtimeofracegmt, .before=courseid) %>%
-  filter(meetingdate >= '2025-01-01', meetingdate < '2026-01-01')
-
-  min(model_data$meetingdate); max(model_data$meetingdate)
+# generate pre-model df with ratings adj's
+pre_model_data <- gb_flat_all_cols %>%
+  # barrier pos e.g. 1_3 = inside, 10+ = wide etc
+  mutate(across(all_of(factor_vars), ~fct(.))) %>%
+  # ESTIMATE MISSUING K/TF RATINGS:
+  mutate(k_rating_pred = predict(k_na_model, .),
+         pre_race_rating_adjusted_y = round(ifelse(is.na(pre_race_rating_adjusted), k_rating_pred, pre_race_rating_adjusted)),
+         tf_rating_pred = predict(tf_na_model, .)) %>%
+  # Scale ratings per field (try normalising by raceclass @ venue???)
+  group_by(raceid) %>%
+  mutate(pre_race_rating_diff = pre_race_rating_adjusted_y - mean(pre_race_rating_adjusted_y),
+         pre_race_rating_adjusted_z = nm(scale(pre_race_rating_adjusted_y)), # z-value
+         pre_race_rating_adjusted_z_adj = pnorm(pre_race_rating_adjusted_z) * 100, # 0-100 adj
+         ) %>% ungroup() %>%
+  relocate(pre_race_rating_adjusted_z, pre_race_rating_adjusted_z_adj, .after=pre_race_rating_adjusted) %>%
+  arrange(scheduledtimeofracegmt, saddlecloth)
   
-  dbWriteTable(con, 
-               name='gb_racing_data', 
-               value=model_data, 
-               append=T, 
-               row.names=F)
-  
-  # get col max string lengths - compare to sql
-  cols <- dbGetQuery(con, "SHOW COLUMNS FROM gb_racing_data")
-  sql_lengths <- cols %>%
-    mutate(max_length = as.integer(str_match(cols$Type, "\\((\\d+)\\)")[, 2])) %>%
-    select(-c(Type:Extra))
-  string_lengths <- model_data %>% 
-    summarise(across(everything(), ~max(nchar(as.character(.)), na.rm = TRUE))) %>%
-    pivot_longer(everything(), names_to = "Field", values_to = "max_length") %>%
-    left_join(., sql_lengths, by='Field', suffix=c('_R', '_SQL')) %>%
-    filter(max_length_R > max_length_SQL)
-  if(nrow(string_lengths)>0) "UPDATE SQL STRING LENGTH MAX"
+# CHECK all NA/Zero columns
+na_zero_cols_df <- gb_flat_all_cols %>% select(raceid, scheduledtimeofracegmt, coursename, where(~all(.==0, na.rm=TRUE)))
+na_cols <- na_zero_cols_df %>% summarise_all(~all(is.na(.))) %>% select_if(~.) %>% names()
+print(na_cols)
+zero_cols <- na_zero_cols_df %>% summarise_all(~all(.==0)) %>% select_if(~.) %>% names()
+print(zero_cols)
+
+
+# check any k-rating na's
+k_rating_nas <- pre_model_data %>% filter(is.na(pre_race_rating_adjusted))
+# raceclass na's
+raceclass_nas <- pre_model_data %>% filter(is.na(raceclass))
+# run1_raceclass na's
+run1_raceclass_nas <- pre_model_data %>% filter(is.na(run1_raceclass), run1_meetingdate!='')
+# bsp NAs
+bsp_nas <- pre_model_data %>% filter(is.na(betfairwinsp))
+# run1 bsp NAs
+run1_bsp_nas <- pre_model_data %>% filter(is.na(run1_betfairwinsp))
+
+
+# get col max string lengths - compare to sql
+cols <- dbGetQuery(con, "SHOW COLUMNS FROM gb_racing_data")
+sql_lengths <- cols %>%
+  mutate(max_length = as.integer(str_match(cols$Type, "\\((\\d+)\\)")[, 2])) %>%
+  select(-c(Type:Extra))
+string_lengths <- pre_model_data %>% 
+  summarise(across(everything(), ~max(nchar(as.character(.)), na.rm = TRUE))) %>%
+  pivot_longer(everything(), names_to = "Field", values_to = "max_length") %>%
+  left_join(., sql_lengths, by='Field', suffix=c('_R', '_SQL')) %>%
+  filter(max_length_R > max_length_SQL)
+if(nrow(string_lengths)>0) "UPDATE SQL STRING LENGTH MAX"
+
 
 # attach new data
 if(loadNewData == 1 & nrow(string_lengths)==0){
-  
   # ids stored in sql
-  stored_raceids <- dbGetQuery(con, 'select distinct raceid, meetingdate from gb_racing_data')
+  stored_raceids <- dbGetQuery(con, 'select distinct raceid from gb_racing_data')
   # append newly added data
-  pre_model_data_sql <- pre_model_data %>%
-    # remove run2+ for now
-    select(-c(run2_raceid:run16_k_performance_rating_estimate_adj)) %>%
-    relocate(starts_with('run1'), .after=pre_race_rating_diff) %>%
-    # final col selections
-    select(courseid:run1_raceid, run1_meetingdate, run1_coursename, run1_draw, run1_betfairwinsp, 
-           run1_racetype, run1_raceclass, run1_racesurfacename, run1_racecode, run1_k_performance_rating_estimate_adj,
-           -all_of(excl_vars)) %>%
-    filter(meetingdate >= '2023-01-01', 
-           !raceid %in% stored_raceids$raceid)
+  pre_model_data_sql <- pre_model_data %>% filter(!raceid %in% stored_raceids$raceid)
   # append new data
   if(nrow(pre_model_data_sql)>0){
     # write to sql
-    dbWriteTable(con, 
-                 name='gb_racing_data', 
-                 value=gb_racing_sql_2025, 
-                 append=T, 
-                 row.names=F)
-    # export for model scripts to call
-    #save(pre_model_data, file='gb_racing_model_data.rda')
+    dbWriteTable(con, name='gb_racing_data', value=pre_model_data_sql, append=T, row.names=F)
   }
 }
 
+
+# remove run2+ for now
+#select(-c(run2_raceid:run16_k_performance_rating_estimate_adj)) %>%
+#relocate(starts_with('run1'), .after=pre_race_rating_diff) %>%
+# final col selections
+#select(courseid:run1_raceid, run1_meetingdate, run1_coursename, run1_draw, run1_betfairwinsp, 
+#       run1_racetype, run1_raceclass, run1_racesurfacename, run1_racecode, run1_k_performance_rating_estimate_adj,
+#       -all_of(excl_vars)) %>%

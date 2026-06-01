@@ -75,17 +75,6 @@ source('uk_racing_data.R')
 # target var
 target_var = 'finish_group'
 
-# final model data select
-model_data <- pre_model_data %>%
-  select(!na_cols,
-         !zero_cols,
-         all_of(race_vars), 
-         all_of(numeric_vars), 
-         all_of(factor_vars), 
-         ends_with('trainercode'), 
-         target_var)
-
-
 # Predict finish position using tidymodels
 model_vars = c(#### numeric vars
   #'numberofrunners',
@@ -128,7 +117,7 @@ model_data_w_nas <- model_data %>%
   select(target_var, raceid, meetingdate, year, horsename, racecode, numberofrunners,
          all_of(model_vars), betfairwinsp, bsp_index, bsp_bin, positionofficial, 
          preraceadjustedrating, raceclass, racecode, racesurfacename, class_prior) %>%
-  # initial model data filtering
+  # secondary model data filtering
   filter(!raceid %in% rating_anomalies$raceid, # this accounts for outliers
          raceclass %in% c(1:6), # raceclass 1:4 with bsp_prob incl as feature = profitable $2.5-5!!!
          racesurfacename == 'Turf'
@@ -152,8 +141,7 @@ train_data <- model_data_final %>%
          meetingdate < test_date_start,
          numberofrunners >= 6,
          #rating_rank %in% c(1:6)
-  ) %>% 
-  select(target_var, model_vars) 
+  ) %>% select(target_var, model_vars) 
 
 
 #### tune xScore model ####

@@ -19,8 +19,8 @@
 #  - are all features accessible on raceday?
 #################################################
 
-#cdir = 'C:/Users/jonsa/OneDrive/STATS_ON/Projects/Mike_Spence/Kerdos'
-cdir = 'C:/Users/jonathan.sargent/Documents/Kerdos'
+cdir = 'C:/Users/jonsa/OneDrive/STATS_ON/Projects/Mike_Spence/Kerdos'
+#cdir = 'C:/Users/jonathan.sargent/Documents/Kerdos'
 setwd(cdir)
 
 library(dplyr)
@@ -65,6 +65,8 @@ gb_data_recent <- read.csv("gb_recent_data.csv") %>% select(names(gb_racing_sql)
 
 
 #### FEATURE ENGINEERING #####
+
+loadNewData = 0
 
 # price intervals
 bsp_int=c(seq(0, 10, 2.5), 15, 25, 50, 1001)

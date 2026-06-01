@@ -31,6 +31,7 @@ library(probably)
 library(themis)
 library(RMariaDB)
 library(slider)
+library(gert)
 
 ch=function(x){as.character(x)}
 fct=function(x){as.factor(x)}
@@ -287,6 +288,10 @@ if(loadNewData == 1 & nrow(string_lengths)==0){
   }
 }
 
+# send season data back to repo
+git_add("uk_racing_data.R")
+git_commit("Update data script")
+git_push()
 
 # remove run2+ for now
 #select(-c(run2_raceid:run16_k_performance_rating_estimate_adj)) %>%

@@ -217,7 +217,7 @@ factor_vars = c('racenumber', 'draw', 'positionofficial', 'horsegender', 'distan
 ) # 'pacemapsidealposition', 'pre_race_rating_symbol', 
 
 # leave these out
-excl_vars <- c('bfmarketid', 'courseabbrev',	'scheduledtimeofracelocal',	'racetitle',	'distancetext',	'distanceyards',	'distancefurlongs',	
+excl_vars <- c('scheduledtimeofracelocal',	'racetitle',	'distancetext',	'distanceyards',	'distancefurlongs',	
                'courseextraid',	'eligibilityagemax',	'ratinglimitlower',	'resultsstatus', 'trw1',	'trw2',	'trw3',	'trw4',	'trw5',	
                'tfwfa',	'positionstatus',	'ispfavtext',	'ownercode',	'ownerfullname', 'performancesymbol',	'tissuepricefractional',	
                'statusdescription', 'statusid',	'betfairbackprice',	'crsdiswinfavtext',	'bfselectionid',	'sportsbookdecimalodds',	
@@ -226,6 +226,14 @@ excl_vars <- c('bfmarketid', 'courseabbrev',	'scheduledtimeofracelocal',	'raceti
                'damsirename',	'damsirehistoricalrating', 'damsirehistoricalsymbol',	'damsireratingdisplay',	'foalingdate',	'sirecd',	
                'pacemapsidealposition', 'ispfractional', 'postrace_rating_symbol', 'jockeyuplift', 'traineruplift', 'horsesforcoursepos', 
                'horsesforcoursesneg', 'warninghorse', 'bsp_run1_fluc')
+
+# CHECK all NA/Zero columns
+na_zero_cols_df <- gb_flat_all_cols %>% select(raceid, scheduledtimeofracegmt, coursename, where(~all(.==0, na.rm=TRUE)))
+na_cols <- na_zero_cols_df %>% summarise_all(~all(is.na(.))) %>% select_if(~.) %>% names()
+print(na_cols)
+zero_cols <- na_zero_cols_df %>% summarise_all(~all(.==0)) %>% select_if(~.) %>% names()
+print(zero_cols)
+
 
 # generate pre-model df with ratings adj's
 pre_model_data <- gb_flat_all_cols %>%
@@ -242,14 +250,11 @@ pre_model_data <- gb_flat_all_cols %>%
          pre_race_rating_adjusted_z_adj = pnorm(pre_race_rating_adjusted_z) * 100, # 0-100 adj
          ) %>% ungroup() %>%
   relocate(pre_race_rating_adjusted_z, pre_race_rating_adjusted_z_adj, .after=pre_race_rating_adjusted) %>%
+  
+  select(!c(na_cols, zero_cols)) %>%
+  
   arrange(scheduledtimeofracegmt, saddlecloth)
   
-# CHECK all NA/Zero columns
-na_zero_cols_df <- gb_flat_all_cols %>% select(raceid, scheduledtimeofracegmt, coursename, where(~all(.==0, na.rm=TRUE)))
-na_cols <- na_zero_cols_df %>% summarise_all(~all(is.na(.))) %>% select_if(~.) %>% names()
-print(na_cols)
-zero_cols <- na_zero_cols_df %>% summarise_all(~all(.==0)) %>% select_if(~.) %>% names()
-print(zero_cols)
 
 
 # check any k-rating na's

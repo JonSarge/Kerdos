@@ -296,7 +296,7 @@ if(loadNewData == 1 & nrow(string_lengths)==0){
 }
 
 # send season data back to repo
-git_add("uk_racing_model.R")
+git_add("uk_racing_data.R")
 git_commit("Update data script")
 git_push()
 

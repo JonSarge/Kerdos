@@ -191,6 +191,12 @@ pnl_table(test_pnl_dat, c( 'month' ), 0, 0.04, 0.1)
 pnl_table(test_pnl_dat, c( 'bsp_index', 'bsp_bin' ), 0, 0.04, 0.1)
 pnl_table(test_pnl_dat, c( 'bsp_index_all' ), 0, 0.04, 0.1)
 
+
+# send script to repo
+git_add("uk_racing_model.R")
+git_commit("Update data script")
+git_push()
+
           
 test_pnl_filtered <- test_pnl_dat %>%
   mutate(pick = ifelse(exp_value >= 0 &

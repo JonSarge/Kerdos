@@ -87,11 +87,11 @@ model_vars = c(#### numeric vars
   'bsp_run1_fluc',
   'bsp_prob',
   #'goingofficial_adj', # UN-BRACKETED FACTORS 
-  'toprated',
-  'pace_pred',
-  'jockeyinform', # jockey ability more pronounced for all-weather (winter) 
-  'prizefund',
-  'significantimprover'
+  #'toprated',
+  #'pace_pred',
+  #'jockeyinform', # jockey ability more pronounced for all-weather (winter) 
+  'prizefund'
+  #'significantimprover'
   #'class_prior',
   #'hottrainer',
   #'tissuepricedecimal'
@@ -102,22 +102,15 @@ model_vars = c(#### numeric vars
 )
 
 
-# modelling df w/ NA's - CHECK FILTERS!!!         
-model_data_w_nas <- model_data %>%  
-  # estimate the NA K-Ratings here (prior to final rating_rank)
-  mutate(pre_race_rating_adjusted=ifelse(is.na(pre_race_rating_adjusted), pre_race_rating_adjusted_y, pre_race_rating_adjusted)) %>%
-  # add k-rating rank per race here (after any filtering) 
-  group_by(raceid) %>%
-  mutate(rating_rank=dense_rank(-pre_race_rating_adjusted)) %>% ungroup() %>%
-  mutate(daysoff = ifelse(is.na(daysoff), 0, daysoff)) %>%
-  select(target_var, raceid, meetingdate, year, horsename, racecode, numberofrunners,
-         all_of(model_vars), betfairwinsp, bsp_index, bsp_bin, positionofficial, 
-         preraceadjustedrating, raceclass, racecode, racesurfacename, class_prior) %>%
-  # secondary model data filtering
+# modelling df w/ NA's (fill or remove NA's!!!)         
+model_data_w_nas <- pre_model_data %>%  
+  # final model select
+  select(target_var, all_of(race_vars), all_of(model_vars)) %>%
+  # final model data filtering
   filter(!raceid %in% rating_anomalies$raceid, # this accounts for outliers
          raceclass %in% c(1:6), # raceclass 1:4 with bsp_prob incl as feature = profitable $2.5-5!!!
          racesurfacename == 'Turf'
-  )
+)
 
 # model cols w/ na's
 model_data_nas <- model_data_w_nas %>% select(where(~ any(is.na(.x))))
@@ -135,9 +128,10 @@ test_date_end = '2026-12-31'
 train_data <- model_data_final %>% 
   filter(meetingdate >= train_date_start,
          meetingdate < test_date_start,
-         numberofrunners >= 6,
+         numberofrunners >= 6, # only aapplied to training
          #rating_rank %in% c(1:6)
-  ) %>% select(target_var, model_vars) 
+  ) %>% 
+  select(target_var, model_vars) 
 
 
 #### tune xScore model ####
@@ -183,9 +177,10 @@ test_pnl_dat <- bind_cols(test_data,
          #meetingdate > '2026-04-20'
          )
 # pnl tables
-pnl_table(test_pnl_dat, c( 'month' ), 0, 0.04, 0.1) 
-pnl_table(test_pnl_dat, c( 'bsp_index', 'bsp_bin' ), 0, 0.04, 0.1)
-pnl_table(test_pnl_dat, c( 'bsp_index_all' ), 0, 0.04, 0.1)
+coeffs = c(0, 0.04, 0.1)
+pnl_table(test_pnl_dat, c( 'month' ), coeffs[1], coeffs[2], coeffs[3]) 
+pnl_table(test_pnl_dat, c( 'bsp_index', 'bsp_bin' ), coeffs[1], coeffs[2], coeffs[3])
+pnl_table(test_pnl_dat, c( 'bsp_index_all' ), coeffs[1], coeffs[2], coeffs[3])
 
 
 # send script to repo

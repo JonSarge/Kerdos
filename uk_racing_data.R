@@ -62,7 +62,7 @@ gb_data_recent <- read.csv("gb_recent_data.csv") %>% select(names(gb_racing_sql)
 
 #### FEATURE ENGINEERING #####
 
-loadNewData = 0
+# loadNewData = 0
 
 # price intervals
 bsp_int=c(seq(0, 10, 2.5), 15, 25, 50, 1001)

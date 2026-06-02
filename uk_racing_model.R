@@ -22,10 +22,6 @@
 #
 #################################################
 
-#cdir = 'C:/Users/jonsa/OneDrive/STATS_ON/Projects/Mike_Spence'
-cdir = 'C:/Users/jonathan.sargent/R/Kerdos'
-setwd(cdir)
-
 library(dplyr)
 library(stringr)
 library(tidymodels)

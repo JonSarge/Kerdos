@@ -19,10 +19,6 @@
 #  - are all features accessible on raceday?
 #################################################
 
-cdir = 'C:/Users/jonsa/OneDrive/STATS_ON/Projects/Mike_Spence/Kerdos'
-#cdir = 'C:/Users/jonathan.sargent/Documents/Kerdos'
-setwd(cdir)
-
 library(dplyr)
 library(stringr)
 library(tidyverse)
@@ -164,8 +160,8 @@ rating_dat <- gb_flat_all_cols %>%
          contains(c('rating','figure', 'trw', 'Rating'))) # , 'figure', 'trw', 'Rating' 
 
 # Kerdos v Timeform
-k_ratings <- rating_dat %>% select(race_vars, pre_race_rating_adjusted, contains('post_race'), pre_race_rating_raw, contains('postrace'), -ends_with('_symbol')) %>% unique()
-tf_ratings <- rating_dat %>% select(race_vars, contains(c('adjustedrating', 'masterrating', 'performancerating', 'timefigure'))) %>% unique()
+k_ratings <- rating_dat %>% select(all_of(race_vars), pre_race_rating_adjusted, contains('post_race'), pre_race_rating_raw, contains('postrace'), -ends_with('_symbol')) %>% unique()
+tf_ratings <- rating_dat %>% select(all_of(race_vars), contains(c('adjustedrating', 'masterrating', 'performancerating', 'timefigure'))) %>% unique()
 # missing values model from this df
 both_ratings <- k_ratings %>%
   select(-starts_with('run')) %>%
@@ -251,7 +247,7 @@ pre_model_data <- gb_flat_all_cols %>%
          ) %>% ungroup() %>%
   relocate(pre_race_rating_adjusted_z, pre_race_rating_adjusted_z_adj, .after=pre_race_rating_adjusted) %>%
   
-  select(!c(na_cols, zero_cols)) %>%
+  select(!c(all_of(na_cols), all_of(zero_cols))) %>%
   
   arrange(scheduledtimeofracegmt, saddlecloth)
   

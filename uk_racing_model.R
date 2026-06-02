@@ -111,7 +111,6 @@ model_data_w_nas <- pre_model_data %>%
          raceclass %in% c(1:6), # raceclass 1:4 with bsp_prob incl as feature = profitable $2.5-5!!!
          racesurfacename == 'Turf'
 )
-
 # model cols w/ na's
 model_data_nas <- model_data_w_nas %>% select(where(~ any(is.na(.x))))
 # final data (na's removed)
@@ -121,7 +120,7 @@ model_data_final <- model_data_w_nas %>% filter(complete.cases(.)) # some missin
 model_formula = as.formula(paste(target_var, '~', paste(model_vars, collapse = " + ")))
 # train/test dates
 train_date_start = '2024-01-01'
-test_date_start = '2026-01-01' # run from 1st June with training data up to 30th May
+test_date_start = '2026-01-01'   # run from 1st June with training data up to 30th May
 test_date_end = '2026-12-31'
 
 # training sample w final filtering
@@ -129,7 +128,7 @@ train_data <- model_data_final %>%
   filter(meetingdate >= train_date_start,
          meetingdate < test_date_start,
          numberofrunners >= 6, # only aapplied to training
-         #rating_rank %in% c(1:6)
+         rating_rank %in% c(1:6)
   ) %>% 
   select(target_var, model_vars) 
 
@@ -159,29 +158,34 @@ test_pnl_dat <- bind_cols(test_data,
    mutate(
      winprob_adj=winprob/sum(winprob),
      winprob_rank=dense_rank(-winprob_adj),
-     field_size = n()
+     field_size = n(),
+     # dead-heat adj
+     win=ifelse(positionofficial==1, 1, 0),
+     win=ifelse(sum(win)==2 & win==1, 0.5, win)
    ) %>% ungroup() %>%
    mutate(month=month(meetingdate, label = TRUE, abbr = TRUE),
           bsp_bin=gsub('0-2.5', '1.01-2.5', bsp_bin),
           bsp_index_all=1,
           pick=ifelse(winprob_rank %in% c(1:6), 1, 0),
           winprice=1/winprob_adj, # model price
-          win=ifelse(positionofficial==1, 1, 0),
           ave_win_bsp=ifelse(win==1, betfairwinsp, NA),
           profit=win*betfairwinsp-1,
           bf_prob = 1/(betfairwinsp),
           exp_value = (betfairwinsp - winprice)/winprice,
           conf_level = winprob - bf_prob
    ) %>% 
-  filter(racecode == 'I', 
-         #meetingdate > '2026-04-20'
-         )
+  filter(racecode != 'Ix')
 # pnl tables
-coeffs = c(0, 0.04, 0.1)
-pnl_table(test_pnl_dat, c( 'month' ), coeffs[1], coeffs[2], coeffs[3]) 
+coeffs = c(0, 0, 0) # exp val; conf level; winprob min
+#pnl_table(test_pnl_dat, c( 'month' ), coeffs[1], coeffs[2], coeffs[3]) 
 pnl_table(test_pnl_dat, c( 'bsp_index', 'bsp_bin' ), coeffs[1], coeffs[2], coeffs[3])
 pnl_table(test_pnl_dat, c( 'bsp_index_all' ), coeffs[1], coeffs[2], coeffs[3])
 
+# check dead-heats
+dead_heats <- test_pnl_dat %>% 
+  count(raceid, positionofficial) %>% 
+  filter(positionofficial==1) %>%
+  arrange(-n)
 
 # send script to repo
 git_add("uk_racing_model.R")

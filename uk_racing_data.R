@@ -103,6 +103,8 @@ gb_flat_all_cols <- gb_racing_sql %>%
          ),
          # convert distance to meters
          distance_m=distance*201.168,
+         #daysoff adj
+         daysoff = ifelse(is.na(daysoff), 0, daysoff),
          # win vars
          win=ifelse(positionofficial == 1, 1, 0),
          win_place=ifelse(positionofficial %in% c(1, 2, 3), 1, 0),
@@ -143,7 +145,8 @@ if(nrow(pre_model_data_dupes)>0) cat("CHECK RUNNER DUPES!!!")
 # This is where a horse is having its first run in a race type, hasn’t run in this race type for a long time OR there is not enough data for Timeform to go on
 
 race_vars <- c('raceid', 'racenumber', 'meetingdate', 'scheduledtimeofracegmt', 'coursename', 
-               'horsecode', 'horsename', 'positionofficial')
+               'horsecode', 'horsename', 'positionofficial', 'numberofrunners', 
+               'betfairwinsp', 'bsp_index', 'bsp_bin', 'raceclass', 'racecode', 'racesurfacename')
 
 # CHECK: uncorrelated kerdos & tf
 rating_anomalies <- gb_flat_all_cols %>%
@@ -238,17 +241,18 @@ pre_model_data <- gb_flat_all_cols %>%
   # ESTIMATE MISSUING K/TF RATINGS:
   mutate(k_rating_pred = predict(k_na_model, .),
          pre_race_rating_adjusted_y = round(ifelse(is.na(pre_race_rating_adjusted), k_rating_pred, pre_race_rating_adjusted)),
-         tf_rating_pred = predict(tf_na_model, .)) %>%
+         pre_race_rating_adjusted=ifelse(is.na(pre_race_rating_adjusted), pre_race_rating_adjusted_y, pre_race_rating_adjusted),
+         tf_rating_pred = predict(tf_na_model, .),
+         ) %>%
   # Scale ratings per field (try normalising by raceclass @ venue???)
   group_by(raceid) %>%
   mutate(pre_race_rating_diff = pre_race_rating_adjusted_y - mean(pre_race_rating_adjusted_y),
          pre_race_rating_adjusted_z = nm(scale(pre_race_rating_adjusted_y)), # z-value
          pre_race_rating_adjusted_z_adj = pnorm(pre_race_rating_adjusted_z) * 100, # 0-100 adj
-         ) %>% ungroup() %>%
+         # add k-rating rank per race here (after any filtering) 
+         rating_rank=dense_rank(-pre_race_rating_adjusted)) %>% ungroup() %>%
   relocate(pre_race_rating_adjusted_z, pre_race_rating_adjusted_z_adj, .after=pre_race_rating_adjusted) %>%
-  
   select(!c(all_of(na_cols), all_of(zero_cols))) %>%
-  
   arrange(scheduledtimeofracegmt, saddlecloth)
   
 

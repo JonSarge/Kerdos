@@ -66,6 +66,7 @@ registerDoParallel(cl)
 
 # update data
 loadNewData = 0
+# load data
 source('uk_racing_data.R')
 
 # target var
@@ -83,9 +84,10 @@ model_vars = c(#### numeric vars
   'daysoff',
   'pre_race_rating_adjusted',
   #'pre_race_rating_adjusted_z_adj',
-  'rating_rank',
+  #'rating_rank',
   'bsp_run1_fluc',
   'bsp_prob',
+  #'racesurfacename',
   #'goingofficial_adj', # UN-BRACKETED FACTORS 
   #'toprated',
   #'pace_pred',
@@ -104,12 +106,18 @@ model_vars = c(#### numeric vars
 
 # modelling df w/ NA's (fill or remove NA's!!!)         
 model_data_w_nas <- pre_model_data %>%  
+  # final formatting
+  mutate(racesurfacename=case_when(
+    racesurfacename=='Turf' ~ 'T',
+    racesurfacename=='All Weather' ~ 'AW',
+    TRUE ~ racesurfacename
+  )) %>%
   # final model select
-  select(target_var, all_of(race_vars), all_of(model_vars)) %>%
+  select(target_var, all_of(race_vars), all_of(model_vars), rating_rank) %>%
   # final model data filtering
-  filter(!raceid %in% rating_anomalies$raceid, # this accounts for outliers
-         raceclass %in% c(1:6), # raceclass 1:4 with bsp_prob incl as feature = profitable $2.5-5!!!
-         racesurfacename == 'Turf'
+  filter(#!raceid %in% rating_anomalies$raceid, # this accounts for outliers
+         raceclass %in% c(5:6), # raceclass 1:4 with bsp_prob incl as feature = profitable $2.5-5!!!
+         racesurfacename=='AW'
 )
 # model cols w/ na's
 model_data_nas <- model_data_w_nas %>% select(where(~ any(is.na(.x))))
@@ -127,11 +135,9 @@ test_date_end = '2026-12-31'
 train_data <- model_data_final %>% 
   filter(meetingdate >= train_date_start,
          meetingdate < test_date_start,
-         numberofrunners >= 6, # only aapplied to training
-         rating_rank %in% c(1:6)
-  ) %>% 
-  select(target_var, model_vars) 
-
+         numberofrunners >= 4, # only aapplied to training
+         #rating_rank %in% c(1:6)
+    )
 
 #### tune xScore model ####
 TreeModel = c('lightgbm', 'xgboost', 'glmnet')
@@ -159,44 +165,47 @@ test_pnl_dat <- bind_cols(test_data,
      winprob_adj=winprob/sum(winprob),
      winprob_rank=dense_rank(-winprob_adj),
      field_size = n(),
-     # dead-heat adj
      win=ifelse(positionofficial==1, 1, 0),
-     win=ifelse(sum(win)==2 & win==1, 0.5, win)
+     win=ifelse(sum(win)==2 & win==1, 0.5, win) # dead-heat adj
    ) %>% ungroup() %>%
    mutate(month=month(meetingdate, label = TRUE, abbr = TRUE),
           bsp_bin=gsub('0-2.5', '1.01-2.5', bsp_bin),
           bsp_index_all=1,
-          pick=ifelse(winprob_rank %in% c(1:6), 1, 0),
+          pick=ifelse(winprob_rank %in% c(1:4), 1, 0),
           winprice=1/winprob_adj, # model price
           ave_win_bsp=ifelse(win==1, betfairwinsp, NA),
           profit=win*betfairwinsp-1,
           bf_prob = 1/(betfairwinsp),
           exp_value = (betfairwinsp - winprice)/winprice,
           conf_level = winprob - bf_prob
-   ) %>% 
-  filter(racecode != 'Ix')
+   ) #%>% 
 # pnl tables
-coeffs = c(0, 0, 0) # exp val; conf level; winprob min
-#pnl_table(test_pnl_dat, c( 'month' ), coeffs[1], coeffs[2], coeffs[3]) 
-pnl_table(test_pnl_dat, c( 'bsp_index', 'bsp_bin' ), coeffs[1], coeffs[2], coeffs[3])
-pnl_table(test_pnl_dat, c( 'bsp_index_all' ), coeffs[1], coeffs[2], coeffs[3])
+mins = c(0, 0.04, 0.1) # exp val; conf level; winprob min
+pnl_table(test_pnl_dat, c( 'racesurfacename', 'racecode' ), mins[1], mins[2], mins[3]) 
+#pnl_table(test_pnl_dat, c( 'bsp_index', 'bsp_bin' ), mins[1], mins[2], mins[3])
+pnl_table(test_pnl_dat, c( 'racesurfacename', 'bsp_index_all' ), mins[1], mins[2], mins[3])
 
-# check dead-heats
-dead_heats <- test_pnl_dat %>% 
-  count(raceid, positionofficial) %>% 
-  filter(positionofficial==1) %>%
-  arrange(-n)
 
 # send script to repo
 git_add("uk_racing_model.R")
 git_commit("Update data script")
 git_push()
 
+
+
+
+
+
+# check dead-heats
+dead_heats <- test_pnl_dat %>% 
+  count(raceid, positionofficial) %>% 
+  filter(positionofficial==1 & n > 1)
           
 test_pnl_filtered <- test_pnl_dat %>%
   mutate(pick = ifelse(exp_value >= 0 &
-                       conf_level >= 0.04 &
-                       winprob_adj >= 0, 1, 0))
+                       conf_level >= 0.02 &
+                       winprob_adj >= 0, 
+                1, 0))
 
 test_pnl_filtered %>% 
   group_by(pick) %>% 
@@ -206,7 +215,8 @@ test_pnl_filtered %>%
 bets_per_race = test_pnl_filtered %>%
   group_by(raceid) %>%
   summarise(bets=sum(pick),
-            field=mean(numberofrunners))
+            field=mean(numberofrunners),
+            roi=sum(profit))
 
 bets_per_race %>% group_by(bets) %>% summarise(freq=n()) %>% mutate(freq_perc=freq/sum(freq))
          

@@ -145,8 +145,8 @@ if(nrow(pre_model_data_dupes)>0) cat("CHECK RUNNER DUPES!!!")
 # This is where a horse is having its first run in a race type, hasn’t run in this race type for a long time OR there is not enough data for Timeform to go on
 
 race_vars <- c('raceid', 'racenumber', 'meetingdate', 'scheduledtimeofracegmt', 'coursename', 
-               'horsecode', 'horsename', 'positionofficial', 'numberofrunners', 
-               'betfairwinsp', 'bsp_index', 'bsp_bin', 'raceclass', 'racecode', 'racesurfacename')
+               'horsecode', 'horsename', 'positionofficial', 'numberofrunners', 'betfairwinsp', 
+               'bsp_index', 'bsp_bin', 'raceclass', 'run1_raceclass', 'racecode', 'racesurfacename')
 
 # CHECK: uncorrelated kerdos & tf
 rating_anomalies <- gb_flat_all_cols %>%

@@ -40,6 +40,32 @@ ch=function(x){as.character(x)}
 fct=function(x){as.factor(x)}
 nm=function(x){as.numeric(x)}
 hms_times=function(x){format(as.POSIXct(x, origin="1970-01-01",tz="UTC"), '%H:%M')}
+# gerenerate test pnl df 
+pnl_df <- function(ranks){
+  dat <- bind_cols(test_data, 
+                   winprob=predictions$.pred_Win,
+                   winclass=predictions$.pred_class) %>%
+    group_by(raceid) %>%
+    mutate(
+      winprob_adj=winprob/sum(winprob),
+      winprob_rank=dense_rank(-winprob_adj),
+      field_size = n(),
+      win=ifelse(positionofficial==1, 1, 0),
+      win=ifelse(sum(win)==2 & win==1, 0.5, win) # dead-heat adj
+    ) %>% ungroup() %>%
+    mutate(month=month(meetingdate, label = TRUE, abbr = TRUE),
+           bsp_bin=gsub('0-2.5', '1.01-2.5', bsp_bin),
+           bsp_index_all=1,
+           pick=ifelse(winprob_rank %in% ranks, 1, 0),
+           winprice=1/winprob_adj, # model price
+           ave_win_bsp=ifelse(win==1, betfairwinsp, NA),
+           profit=win*betfairwinsp-1,
+           bf_prob = 1/(betfairwinsp),
+           exp_value = (betfairwinsp - winprice)/winprice,
+           conf_level = winprob - bf_prob
+    ) %>% rename(surface=racesurfacename) 
+  return(dat)
+}
 # pnl summary table
 pnl_table <- function(dat, vars, val, conf, prob){
   x <- dat %>%
@@ -92,9 +118,9 @@ model_vars = c(#### numeric vars
   #'toprated',
   #'pace_pred',
   #'jockeyinform', # jockey ability more pronounced for all-weather (winter) 
-  'prizefund'
+  'prizefund',
   #'significantimprover'
-  #'class_prior',
+  'class_prior'
   #'hottrainer',
   #'tissuepricedecimal'
   #'bharating', 
@@ -111,18 +137,33 @@ model_data_w_nas <- pre_model_data %>%
     racesurfacename=='Turf' ~ 'T',
     racesurfacename=='All Weather' ~ 'AW',
     TRUE ~ racesurfacename
-  )) %>%
+  ),
+  #  draw=nm(ch(draw))
+  ) %>%
   # final model select
-  select(target_var, all_of(race_vars), all_of(model_vars), rating_rank) %>%
-  # final model data filtering
-  filter(#!raceid %in% rating_anomalies$raceid, # this accounts for outliers
-         raceclass %in% c(5:6), # raceclass 1:4 with bsp_prob incl as feature = profitable $2.5-5!!!
-         racesurfacename=='AW'
-)
+  select(target_var, all_of(race_vars), all_of(model_vars), rating_rank, run1_raceid) %>%
+  # remove race anomalies
+  filter(!raceid %in% rating_anomalies$raceid)
+
+# rcaeclass na's
+# raceclass_nas_df <- model_data_w_nas %>% filter(is.na(run1_raceclass))
+# # traindat
+# raceclass_train_ids <- raceclass_nas_df %>% pull(run1_raceid) %>% unique()
+# n <- length(raceclass_train_ids)
+# train_idx <- sample(n, size = floor(0.7 * n))
+# train_dat <- raceclass_nas_df %>% 
+#   filter(run1_raceid %in% raceclass_train_ids[train_idx])
+# test_dat  <- raceclass_nas_df %>% filter(!run1_raceid %in% train_dat$run1_raceid)
+
+
 # model cols w/ na's
-model_data_nas <- model_data_w_nas %>% select(where(~ any(is.na(.x))))
+model_data_nas <- model_data_w_nas %>% select(where(~any(is.na(.x))))
+
 # final data (na's removed)
-model_data_final <- model_data_w_nas %>% filter(complete.cases(.)) # some missing raceclasses and pacemapdata
+model_data_final <- model_data_w_nas %>% 
+  filter(raceclass %in% c(5:6), # raceclass 1:4 with bsp_prob incl as feature = profitable $2.5-5!!!
+         racesurfacename=='T',
+         complete.cases(.)) # some missing raceclasses and pacemapdata
 
 # model formula
 model_formula = as.formula(paste(target_var, '~', paste(model_vars, collapse = " + ")))
@@ -136,7 +177,7 @@ train_data <- model_data_final %>%
   filter(meetingdate >= train_date_start,
          meetingdate < test_date_start,
          numberofrunners >= 4, # only aapplied to training
-         #rating_rank %in% c(1:6)
+         rating_rank %in% c(1:6)
     )
 
 #### tune xScore model ####
@@ -156,35 +197,16 @@ learn_rate = 0.1
 loss_reduction = 0.01
 source('uk_racing_model_tune.R') # tuning script
 
-# gerenerate test pl df 
-test_pnl_dat <- bind_cols(test_data, 
-      winprob=predictions$.pred_Win,
-      winclass=predictions$.pred_class) %>%
-   group_by(raceid) %>%
-   mutate(
-     winprob_adj=winprob/sum(winprob),
-     winprob_rank=dense_rank(-winprob_adj),
-     field_size = n(),
-     win=ifelse(positionofficial==1, 1, 0),
-     win=ifelse(sum(win)==2 & win==1, 0.5, win) # dead-heat adj
-   ) %>% ungroup() %>%
-   mutate(month=month(meetingdate, label = TRUE, abbr = TRUE),
-          bsp_bin=gsub('0-2.5', '1.01-2.5', bsp_bin),
-          bsp_index_all=1,
-          pick=ifelse(winprob_rank %in% c(1:4), 1, 0),
-          winprice=1/winprob_adj, # model price
-          ave_win_bsp=ifelse(win==1, betfairwinsp, NA),
-          profit=win*betfairwinsp-1,
-          bf_prob = 1/(betfairwinsp),
-          exp_value = (betfairwinsp - winprice)/winprice,
-          conf_level = winprob - bf_prob
-   ) #%>% 
+# get test pnl df (with winprob ranks)
+test_pnl_dat <- pnl_df(c(1:1))
 # pnl tables
-mins = c(0, 0.04, 0.1) # exp val; conf level; winprob min
-pnl_table(test_pnl_dat, c( 'racesurfacename', 'racecode' ), mins[1], mins[2], mins[3]) 
+mins = c(0, 0.0, 0.1) # exp val; conf level; winprob min
+pnl_table(test_pnl_dat, c( 'surface', 'racecode' ), mins[1], mins[2], mins[3]) 
 #pnl_table(test_pnl_dat, c( 'bsp_index', 'bsp_bin' ), mins[1], mins[2], mins[3])
-pnl_table(test_pnl_dat, c( 'racesurfacename', 'bsp_index_all' ), mins[1], mins[2], mins[3])
+pnl_table(test_pnl_dat, c( 'surface', 'bsp_index_all' ), mins[1], mins[2], mins[3])
 
+# export results
+write.csv(test_pnl_dat, paste0('test_pnl_',  Sys.Date(), '.csv'), row.names = F, na='')
 
 # send script to repo
 git_add("uk_racing_model.R")

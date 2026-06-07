@@ -131,7 +131,7 @@ model_vars = c(#### numeric vars
 
 
 # modelling df w/ NA's (fill or remove NA's!!!)         
-model_data_w_nas <- pre_model_data %>%  
+model_data <- pre_model_data %>%  
   # final formatting
   mutate(racesurfacename=case_when(
     racesurfacename=='Turf' ~ 'T',
@@ -141,7 +141,8 @@ model_data_w_nas <- pre_model_data %>%
   #  draw=nm(ch(draw))
   ) %>%
   # final model select
-  select(target_var, all_of(race_vars), all_of(model_vars), rating_rank, run1_raceid) %>%
+  select(all_of(target_var), all_of(race_vars), all_of(model_vars), 
+         rating_rank, run1_raceid) %>%
   # remove race anomalies
   filter(!raceid %in% rating_anomalies$raceid)
 
@@ -156,14 +157,16 @@ model_data_w_nas <- pre_model_data %>%
 # test_dat  <- raceclass_nas_df %>% filter(!run1_raceid %in% train_dat$run1_raceid)
 
 
-# model cols w/ na's
-model_data_nas <- model_data_w_nas %>% select(where(~any(is.na(.x))))
-
 # final data (na's removed)
-model_data_final <- model_data_w_nas %>% 
-  filter(raceclass %in% c(5:6), # raceclass 1:4 with bsp_prob incl as feature = profitable $2.5-5!!!
-         racesurfacename=='T',
-         complete.cases(.)) # some missing raceclasses and pacemapdata
+model_data_final <- model_data %>% 
+  filter(racesurfacename=='AW',
+         raceclass %in% c(5:6) 
+         ) # some missing raceclasses and pacemapdata
+
+# model cols w/ na's
+model_data_nas <- model_data_final %>% 
+  filter(is.na(run1_raceclass)|is.na(class_prior)) %>% 
+  select(raceid, meetingdate) %>% unique()
 
 # model formula
 model_formula = as.formula(paste(target_var, '~', paste(model_vars, collapse = " + ")))
@@ -174,10 +177,11 @@ test_date_end = '2026-12-31'
 
 # training sample w final filtering
 train_data <- model_data_final %>% 
-  filter(meetingdate >= train_date_start,
+  filter(!raceid %in% model_data_nas$raceid,
+         meetingdate >= train_date_start,
          meetingdate < test_date_start,
          numberofrunners >= 4, # only aapplied to training
-         rating_rank %in% c(1:6)
+         rating_rank %in% c(1:6) # only aapplied to training
     )
 
 #### tune xScore model ####
@@ -198,12 +202,20 @@ loss_reduction = 0.01
 source('uk_racing_model_tune.R') # tuning script
 
 # get test pnl df (with winprob ranks)
-test_pnl_dat <- pnl_df(c(1:1))
+test_pnl_dat <- pnl_df(c(1:4))
 # pnl tables
-mins = c(0, 0.0, 0.1) # exp val; conf level; winprob min
+mins = c(0, 0.04, 0.1) # exp val; conf level; winprob min
 pnl_table(test_pnl_dat, c( 'surface', 'racecode' ), mins[1], mins[2], mins[3]) 
 #pnl_table(test_pnl_dat, c( 'bsp_index', 'bsp_bin' ), mins[1], mins[2], mins[3])
 pnl_table(test_pnl_dat, c( 'surface', 'bsp_index_all' ), mins[1], mins[2], mins[3])
+
+
+# check field
+check_field_size <- test_pnl_dat %>% 
+  group_by(raceid) %>% 
+  summarise(field=n(), 
+            numberofrunners=max(numberofrunners)) %>%
+  filter(field != numberofrunners)
 
 # export results
 write.csv(test_pnl_dat, paste0('test_pnl_',  Sys.Date(), '.csv'), row.names = F, na='')

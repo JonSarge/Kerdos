@@ -147,17 +147,6 @@ model_data <- pre_model_data %>%
   # remove race anomalies
   filter(!raceid %in% rating_anomalies$raceid)
 
-# rcaeclass na's
-# raceclass_nas_df <- model_data_w_nas %>% filter(is.na(run1_raceclass))
-# # traindat
-# raceclass_train_ids <- raceclass_nas_df %>% pull(run1_raceid) %>% unique()
-# n <- length(raceclass_train_ids)
-# train_idx <- sample(n, size = floor(0.7 * n))
-# train_dat <- raceclass_nas_df %>% 
-#   filter(run1_raceid %in% raceclass_train_ids[train_idx])
-# test_dat  <- raceclass_nas_df %>% filter(!run1_raceid %in% train_dat$run1_raceid)
-
-
 # final data (na's removed)
 model_data_final <- model_data %>% 
   filter(racesurfacename=='AW',

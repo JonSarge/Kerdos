@@ -37,6 +37,9 @@ raceclass_dat <- tbl(con, "gb_racing_data") |>
          run1_raceid, run1_meetingdate, run1_coursename, run1_racesurfacename,
          run1_raceclass, run1_racecode, run1_racetype, run1_ratinglimitupper, 
          run1_prizefund) %>%
+  # impute Group & Listed NA's
+  mutate(raceclass=ifelse(racecode %in% c('G1', 'G2', 'G3', 'L'), 1, raceclass),
+         run1_raceclass=ifelse(run1_racecode %in% c('G1', 'G2', 'G3', 'L'), 1, run1_raceclass)) %>%
   filter(scheduledtimeofracegmt >= "2024-01-01",
          countrycode == 'GBR',
          racetype == 'Flat') %>%
@@ -46,9 +49,41 @@ raceclass_dat <- tbl(con, "gb_racing_data") |>
 # filter na's by raceid
 raceclass_nas <- raceclass_dat %>% filter(is.na(raceclass))
 
-# impute L, G1-3 as C1!!!
-
 # remove NA raceclass races with run1_prizefund=0 & run1_ratingupperlimit=0/NA
+run1_raceclass_nas <- raceclass_dat %>% 
+  select(contains('run1')) %>%
+  filter(is.na(run1_raceclass),
+         run1_raceid != '',
+         run1_prizefund==0,
+         (run1_ratinglimitupper==0|
+          is.na(run1_ratinglimitupper))) 
+
+# performancerating var to estimate missing run1_raceclass NA's
+perfrating_dat <- gb_racing_2022_2026 %>% # import raw gb_racing_model_data.rda  
+  filter(run1_meetingdate>='2023-01-01') %>%
+  select(run1_raceid, run1_meetingdate, run1_coursename, run1_raceclass, 
+         run1_performancerating) %>%
+  group_by(run1_raceid) %>%
+  mutate(run1_perfrating_mean=mean(na.omit(run1_performancerating))) %>% 
+  ungroup()
+  
+perfrating_train <- perfrating_dat %>%
+  filter(!run1_raceid %in% run1_raceclass_nas$run1_raceid,
+         run1_raceclass>0) %>%
+  mutate(run1_raceclass=fct(run1_raceclass)) %>%
+  select(run1_raceclass, run1_perfrating_mean) %>%
+  sample_n(size=1000)
+
+model <- MASS::polr(run1_raceclass ~ run1_perfrating_mean, data = perfrating_train, Hess = TRUE)
+summary(model)
+
+perfrating_test <- perfrating_dat %>% 
+  filter(run1_raceid %in% run1_raceclass_nas$run1_raceid,
+         run1_perfrating_mean > 0) %>%
+  select(-c(run1_performancerating, run1_raceclass)) %>%
+  mutate(run1_raceclass_pred=predict(model, newdata = .))
+
+  
 
 # pull remaining NA's and model those with prizefund for current and prior run
 

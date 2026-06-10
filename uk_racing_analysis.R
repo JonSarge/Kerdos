@@ -5,7 +5,7 @@
 # commenced: 10.06.2026; updated: 10.06.2026
 #
 # Actions:
-#  - peroform ad hoc analysis to augment models
+#  - perform ad hoc analysis to augment models
 #
 #################################################
 
@@ -38,8 +38,8 @@ raceclass_dat <- tbl(con, "gb_racing_data") |>
          run1_raceclass, run1_racecode, run1_racetype, run1_ratinglimitupper, 
          run1_prizefund) %>%
   # impute Group & Listed NA's
-  mutate(raceclass=ifelse(racecode %in% c('G1', 'G2', 'G3', 'L'), 1, raceclass),
-         run1_raceclass=ifelse(run1_racecode %in% c('G1', 'G2', 'G3', 'L'), 1, run1_raceclass)) %>%
+  mutate(raceclass=ifelse(racecode %in% c('G1','G2','G3','L'), 1, raceclass),
+         run1_raceclass=ifelse(run1_racecode %in% c('G1','G2','G3','L'), 1, run1_raceclass)) %>%
   filter(scheduledtimeofracegmt >= "2024-01-01",
          countrycode == 'GBR',
          racetype == 'Flat') %>%

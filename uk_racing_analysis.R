@@ -31,12 +31,20 @@ con <- dbConnect(
 )
 
 # raceclass NA fill
-gb_raceclass_dat <- tbl(con, "gb_racing_data") |>
-  select(raceid, scheduledtimeofracegmt, coursename, racesurfacename, 
-         racenumber, raceclass, prizefund, ratinglimitupper) %>%
-  filter(scheduledtimeofracegmt >= "2026-04-01") %>%
+raceclass_dat <- tbl(con, "gb_racing_data") |>
+  select(raceid, scheduledtimeofracegmt, countrycode, coursename, racenumber, 
+         racetype, racesurfacename, raceclass, racecode, prizefund, ratinglimitupper,
+         run1_raceid, run1_meetingdate, run1_coursename, run1_racesurfacename,
+         run1_raceclass, run1_racecode, run1_racetype, run1_ratinglimitupper, 
+         run1_prizefund) %>%
+  filter(scheduledtimeofracegmt >= "2024-01-01",
+         countrycode == 'GBR',
+         racetype == 'Flat') %>%
   distinct() %>%
   collect()
+
+# filter na's by raceid
+raceclass_nas <- gb_raceclass_dat %>% filter(is.na(raceclass))
 
 # rcaeclass na's
 # raceclass_nas_df <- model_data_w_nas %>% filter(is.na(run1_raceclass))

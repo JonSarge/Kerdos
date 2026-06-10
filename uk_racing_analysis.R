@@ -44,7 +44,13 @@ raceclass_dat <- tbl(con, "gb_racing_data") |>
   collect()
 
 # filter na's by raceid
-raceclass_nas <- gb_raceclass_dat %>% filter(is.na(raceclass))
+raceclass_nas <- raceclass_dat %>% filter(is.na(raceclass))
+
+# impute L, G1-3 as C1!!!
+
+# remove NA raceclass races with run1_prizefund=0 & run1_ratingupperlimit=0/NA
+
+# pull remaining NA's and model those with prizefund for current and prior run
 
 # rcaeclass na's
 # raceclass_nas_df <- model_data_w_nas %>% filter(is.na(run1_raceclass))

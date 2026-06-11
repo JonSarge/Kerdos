@@ -109,18 +109,17 @@ model_vars = c(#### numeric vars
   'horseage',
   'daysoff',
   'pre_race_rating_adjusted',
-  #'pre_race_rating_adjusted_z_adj',
-  #'rating_rank',
+  'rating_rank',
   'bsp_run1_fluc',
   'bsp_prob',
-  #'racesurfacename',
-  #'goingofficial_adj' # UN-BRACKETED FACTORS 
-  #'toprated',
-  'pace_pred'
-  #'jockeyinform', # jockey ability more pronounced for all-weather (winter) 
-  #'prizefund',
-  #'significantimprover'
+  'pace_pred',
+  'prizefund'
   #'class_prior'
+  #'iphintsoverallpace'
+  #'going' # UN-BRACKETED FACTORS 
+  #'toprated',
+  #'jockeyinform', # jockey ability more pronounced for all-weather (winter) 
+  #'significantimprover',
   #'hottrainer',
   #'tissuepricedecimal'
   #'bharating', 
@@ -141,22 +140,17 @@ model_data <- pre_model_data %>%
   # draw=ifelse(!draw %in% c(1:20), 20, draw), 
   draw = nm(ch(draw))
   ) %>%
-  # final model select
-  select(all_of(target_var), all_of(race_vars), all_of(model_vars), 
-         rating_rank, run1_raceid, class_prior) %>%
-  # remove race anomalies
-  filter(!raceid %in% rating_anomalies$raceid)
-
-# final data (na's removed)
-model_data_final <- model_data %>% 
-  filter(racesurfacename=='AW',
+  # final model data filters
+  filter(!raceid %in% rating_anomalies$raceid,
+         racesurfacename == 'T',
          raceclass %in% c(5:6) 
-         ) # some missing raceclasses and pacemapdata
+  ) 
 
-# model cols w/ na's
-model_data_nas <- model_data_final %>% 
-  filter(is.na(run1_raceclass)) %>% 
-  select(raceid, meetingdate) %>% unique()
+# CHECK model data na's
+model_data_nas <- model_data %>% 
+  select(where(~ any(is.na(.)))) %>%
+  filter(if_any(everything(), is.na))
+  
 
 # model formula
 model_formula = as.formula(paste(target_var, '~', paste(model_vars, collapse = " + ")))
@@ -166,13 +160,19 @@ test_date_start = '2026-01-01'   # run from 1st June with training data up to 30
 test_date_end = '2026-12-31'
 
 # training sample w final filtering
-train_data <- model_data_final %>% 
-  filter(!raceid %in% model_data_nas$raceid,
-         meetingdate >= train_date_start,
+train_data <- model_data %>% 
+  filter(meetingdate >= train_date_start,
          meetingdate < test_date_start,
-         numberofrunners >= 6, # only aapplied to training
-         rating_rank %in% c(1:6) # only aapplied to training
-    )
+         numberofrunners >= 4, # only aapplied to training
+         rating_rank %in% c(1:6), # only aapplied to training
+         !is.na(pace_pred) # FIX THIS!!!
+  ) %>%
+  select(raceid, all_of(model_vars), all_of(target_var)) # final select
+
+# check training data na's
+train_data_nas <- train_data %>% filter(if_any(everything(), is.na))
+
+
 
 #### tune xScore model ####
 TreeModel = c('lightgbm', 'xgboost', 'glmnet')
@@ -197,6 +197,8 @@ test_pnl_dat <- pnl_df(c(1:4))
 mins = c(0, 0.04, 0.1) # exp val; conf level; winprob min
 pnl_table(test_pnl_dat, c( 'surface', 'racecode' ), mins[1], mins[2], mins[3]) 
 pnl_table(test_pnl_dat, c( 'surface', 'bsp_index_all' ), mins[1], mins[2], mins[3])
+
+
 
 #pnl_table(test_pnl_dat, c( 'bsp_index', 'bsp_bin' ), mins[1], mins[2], mins[3])
 

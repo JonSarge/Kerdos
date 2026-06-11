@@ -44,7 +44,7 @@ recipe_ml <- recipe(model_formula, data = train_data) %>%
 predictors = summary(recipe_ml)
 
 # test sample
-test_data <- model_data_final %>% 
+test_data <- model_data %>% 
   filter(meetingdate >= test_date_start,
          meetingdate < test_date_end
   )

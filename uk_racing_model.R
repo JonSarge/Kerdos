@@ -143,7 +143,7 @@ model_data <- pre_model_data %>%
   # final model data filters
   filter(!raceid %in% rating_anomalies$raceid,
          racesurfacename == 'T',
-         raceclass %in% c(5:6) 
+         raceclass %in% c(5:6)
   ) 
 
 # CHECK model data na's
@@ -163,7 +163,7 @@ test_date_end = '2026-12-31'
 train_data <- model_data %>% 
   filter(meetingdate >= train_date_start,
          meetingdate < test_date_start,
-         numberofrunners >= 4, # only aapplied to training
+         numberofrunners >= 6, # only aapplied to training
          rating_rank %in% c(1:6), # only aapplied to training
          !is.na(pace_pred) # FIX THIS!!!
   ) %>%
@@ -195,8 +195,9 @@ source('uk_racing_model_tune.R') # tuning script
 test_pnl_dat <- pnl_df(c(1:4))
 # pnl tables
 mins = c(0, 0.04, 0.1) # exp val; conf level; winprob min
-pnl_table(test_pnl_dat, c( 'surface', 'racecode' ), mins[1], mins[2], mins[3]) 
 pnl_table(test_pnl_dat, c( 'surface', 'bsp_index_all' ), mins[1], mins[2], mins[3])
+pnl_table(test_pnl_dat, c( 'surface', 'month' ), mins[1], mins[2], mins[3]) 
+
 
 
 

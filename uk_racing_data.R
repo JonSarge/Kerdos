@@ -76,7 +76,7 @@ gb_flat_all_cols <- gb_racing_sql %>%
   # primary model filters
   filter(countrycode=='GBR',
          racetype=='Flat',
-         positionofficial != 0 # remove DNF
+         positionofficial > 0 # remove DNF
   ) %>%
   
   # add relevant vars (win, profit etc)
@@ -287,12 +287,11 @@ if(loadNewData == 1 & nrow(string_lengths)==0){
   # ids stored in sql
   stored_raceids <- dbGetQuery(con, 'select distinct raceid from gb_racing_data')
   # append newly added data
-  pre_model_data_sql <- pre_model_data %>% filter(!raceid %in% stored_raceids$raceid)
+  pre_model_data_sql <- pre_model_data %>% 
+    filter(!raceid %in% stored_raceids$raceid) %>% 
+    select(names(gb_racing_sql))
   # append new data
-  if(nrow(pre_model_data_sql)>0){
-    # write to sql
-    dbWriteTable(con, name='gb_racing_data', value=pre_model_data_sql, append=T, row.names=F)
-  }
+  if(nrow(pre_model_data_sql)>0) dbWriteTable(con, name='gb_racing_data', value=pre_model_data_sql, append=T, row.names=F)
 }
 
 # send season data back to repo

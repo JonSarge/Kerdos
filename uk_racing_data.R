@@ -96,6 +96,16 @@ gb_flat_all_cols <- gb_racing_sql %>%
            between(numberofrunners, 11, 16) ~ 'Large',
            TRUE ~ 'Very Large'
          ),
+         # relative draw (to field sixze)
+         draw_relative = (draw - 1) / (numberofrunners - 1),
+         # binned relative draw
+         draw_bin = case_when(
+           draw_relative <= 0.1 ~ 'Rail',
+           draw_relative > 0.1 & draw_relative <= 0.33 ~ 'Inside',
+           draw_relative > 0.33 & draw_relative <= 0.67 ~ 'Middle',
+           draw_relative > 0.67 & draw_relative <= 0.9 ~ 'Middle',
+           TRUE ~ 'Wide'
+         ),
          # Create relative weight feature
          weight_relative = scale(weightcarried)[,1],
          # pace prediction
@@ -202,10 +212,10 @@ hist(tf_ratings$preraceadjustedrating, main='Timeform Master Rating', xlab='Rati
 #### Feature engineering ####
 
 # numeric vars
-numeric_vars = c('distance', 'distancecumulative', 'distancebeaten', 'ispdecimal', 'betfairwinsp', 'betfairplacesp', 'weightcarried', 
+numeric_vars = c('distance', 'draw_relative', 'distancecumulative', 'distancebeaten', 'ispdecimal', 'betfairwinsp', 'betfairplacesp', 'weightcarried', 
                  'daysoff', 'lastrunflat', 'horseage', 'eligibilityagemin', 'bharating', 'bsp_run1_fluc',
                  'wfa', 'apprenticeclaim', 'weightcarried', 'weight_adjustment', 'ratinglimitupper', 'preraceepf', 'pre_race_rating_raw', 
-                 'postrace_rating_raw', 'pre_race_rating_adjusted', 'preraceadjustedrating', 'preracemasterrating', 
+                 'postrace_rating_raw', 'pre_race_rating_adjusted', 'preraceadjustedrating', 'preracemasterrating', 'kerdos_rating',
                  'performancerating', 'ratingsadjustment', 'adj_figure', 'timefigure', 'bharating', 'tissuepricedecimal', 'rating0to100', 'numberofrunners', # 'weight_relative', 
                  'winsatcourse', 'winsatdistance', 'winsatcoursedistance', 'prizefund'
 )
@@ -215,7 +225,7 @@ run1_vars = c('run1_raceid', 'run1_meetingdate', 'run1_coursename', 'run1_positi
               'run1_ratinglimitupper', 'run1_prizefund', 'run1_racesurfacename', 'run1_betfairwinsp')
 
 # factor vars
-factor_vars = c('racenumber', 'draw', 'positionofficial', 'horsegender', 'distancetype', 'racetype', 'raceclass',  
+factor_vars = c('racenumber', 'draw', 'draw_bin', 'positionofficial', 'horsegender', 'distancetype', 'racetype', 'raceclass',  
                 'racesurfacename',  'racecode', 'going',  'iphintsoverallpace', 'pacemapdata', 'field_size',
                 'jockeycode', 'jockeyfullname', 'trainercode', 'trainerfullname', 'ratingstars', 'rating123', 'significantimprover', 'jockeyinform', 
                 'toprated', 'hottrainer', 'eligibilitysexlimit', 'preracemastersymbol', 'hotrace', 'pre_race_rating_symbol_for_16'
@@ -253,11 +263,11 @@ pre_model_data <- gb_flat_all_cols %>%
   # Scale ratings per field (try normalising by raceclass @ venue???)
   group_by(raceid) %>%
   mutate(pre_race_rating_diff = pre_race_rating_adjusted_y - mean(pre_race_rating_adjusted_y),
-         pre_race_rating_adjusted_z = nm(scale(pre_race_rating_adjusted_y)), # z-value
-         pre_race_rating_adjusted_z_adj = pnorm(pre_race_rating_adjusted_z) * 100, # 0-100 adj
+         kerdos_rating = nm(scale(pre_race_rating_adjusted_y)), # z-value
+         kerdos_rating_adj = pnorm(kerdos_rating) * 100, # 0-100 adj
          # add k-rating rank per race here (after any filtering) 
          rating_rank=dense_rank(-pre_race_rating_adjusted)) %>% ungroup() %>%
-  relocate(pre_race_rating_adjusted_z, pre_race_rating_adjusted_z_adj, .after=pre_race_rating_adjusted) %>%
+  relocate(kerdos_rating, kerdos_rating_adj, .after=pre_race_rating_adjusted) %>%
   select(!c(all_of(na_cols), all_of(zero_cols))) %>%
   arrange(scheduledtimeofracegmt, saddlecloth)
   

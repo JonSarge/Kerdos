@@ -99,13 +99,12 @@ source('uk_racing_data.R')
 target_var = 'finish_group'
 
 # Predict finish position using tidymodels
-model_vars = c(#### numeric vars
-  #'numberofrunners',
-  #'raceclass', 
-  #'racecode',
+model_vars = c(
+  'field_size',
+  'raceclass', 
   'draw',
   'distance_m', 
-  'weightcarried', 
+  'weightcarried', # weight_relative
   'horseage',
   'daysoff',
   'pre_race_rating_adjusted',
@@ -118,9 +117,9 @@ model_vars = c(#### numeric vars
   #'iphintsoverallpace'
   #'going' # UN-BRACKETED FACTORS 
   #'toprated',
-  #'jockeyinform', # jockey ability more pronounced for all-weather (winter) 
+  #'jockeyinform' # jockey ability more pronounced for all-weather (winter) 
   #'significantimprover',
-  #'hottrainer',
+ # 'hottrainer',
   #'tissuepricedecimal'
   #'bharating', 
   #'rating0to100'
@@ -142,7 +141,7 @@ model_data <- pre_model_data %>%
   ) %>%
   # final model data filters
   filter(!raceid %in% rating_anomalies$raceid,
-         racesurfacename == 'T',
+         racesurfacename == 'AW',
          raceclass %in% c(5:6)
   ) 
 
@@ -155,7 +154,7 @@ model_data_nas <- model_data %>%
 # model formula
 model_formula = as.formula(paste(target_var, '~', paste(model_vars, collapse = " + ")))
 # train/test dates
-train_date_start = '2024-01-01'
+train_date_start = '2025-01-01'
 test_date_start = '2026-01-01'   # run from 1st June with training data up to 30th May
 test_date_end = '2026-12-31'
 
@@ -164,6 +163,7 @@ train_data <- model_data %>%
   filter(meetingdate >= train_date_start,
          meetingdate < test_date_start,
          numberofrunners >= 6, # only aapplied to training
+         #field_size == 'Medium',
          rating_rank %in% c(1:6), # only aapplied to training
          !is.na(pace_pred) # FIX THIS!!!
   ) %>%

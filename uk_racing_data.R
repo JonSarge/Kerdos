@@ -90,6 +90,12 @@ gb_flat_all_cols <- gb_racing_sql %>%
            TRUE ~ "Out_of_Money"
          ),
          finish_group = factor(finish_group, levels = c("Win", "Place", "Unplaced", "Out_of_Money")),
+         field_size = case_when(
+           numberofrunners < 6 ~ 'Small',
+           between(numberofrunners, 6, 10) ~ 'Medium',
+           between(numberofrunners, 11, 16) ~ 'Large',
+           TRUE ~ 'Very Large'
+         ),
          # Create relative weight feature
          weight_relative = scale(weightcarried)[,1],
          # pace prediction
@@ -210,7 +216,7 @@ run1_vars = c('run1_raceid', 'run1_meetingdate', 'run1_coursename', 'run1_positi
 
 # factor vars
 factor_vars = c('racenumber', 'draw', 'positionofficial', 'horsegender', 'distancetype', 'racetype', 'raceclass',  
-                'racesurfacename',  'racecode', 'going',  'iphintsoverallpace', 'pacemapdata',
+                'racesurfacename',  'racecode', 'going',  'iphintsoverallpace', 'pacemapdata', 'field_size',
                 'jockeycode', 'jockeyfullname', 'trainercode', 'trainerfullname', 'ratingstars', 'rating123', 'significantimprover', 'jockeyinform', 
                 'toprated', 'hottrainer', 'eligibilitysexlimit', 'preracemastersymbol', 'hotrace', 'pre_race_rating_symbol_for_16'
 ) # 'pacemapsidealposition', 'pre_race_rating_symbol', 
@@ -255,7 +261,6 @@ pre_model_data <- gb_flat_all_cols %>%
   select(!c(all_of(na_cols), all_of(zero_cols))) %>%
   arrange(scheduledtimeofracegmt, saddlecloth)
   
-
 
 # check any k-rating na's
 k_rating_nas <- pre_model_data %>% filter(is.na(pre_race_rating_adjusted))

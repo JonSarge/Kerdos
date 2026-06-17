@@ -15,7 +15,15 @@ tree_model = TreeModel[t]
 
 print(paste0('Model:', tree_model, ' | Tuning: ', ifelse(tuneModels == 1, 'YES', 'NO')) )
 
-folds_ml <- vfold_cv(train_data, v = 2, strata = finish_group)
+folds_ml <- sliding_period(
+  train_data,
+  index = meetingdate,
+  period = "month",
+  lookback = Inf,        # expanding window
+  assess_stop = 1
+)
+
+#folds_ml <- vfold_cv(train_data, v = 2, strata = finish_group)
 #folds_ml <- validation_split(train_data, prop = 0.8, strata = finish_group)
 
 n_classes  <- length(levels(train_data$finish_group))
@@ -33,12 +41,16 @@ print(paste("Classes:", n_classes))
 recipe_ml <- recipe(model_formula, data = train_data) %>%
   # Create dummy variables
   step_dummy(all_nominal_predictors(), one_hot = TRUE) %>%
-  # Normalize numeric predictors
-  step_normalize(all_numeric_predictors()) %>%
   # Remove zero variance predictors
   step_zv(all_predictors()) %>%
+  # Normalize numeric predictors
+  step_normalize(all_numeric_predictors()) %>%
   # Remove highly correlated predictors
-  step_corr(all_numeric_predictors(), threshold = 0.9)
+  step_corr(all_numeric_predictors(), threshold = 0.9) #%>%
+  # SMOTE on Win and Place classes
+  #step_smote(finish_group, over_ratio = 0.5, skip = TRUE) #%>%
+  # interaction terms
+  #step_interact(terms = ~ bsp_prob:kerdos_rating) 
 
 # predictors
 predictors = summary(recipe_ml)

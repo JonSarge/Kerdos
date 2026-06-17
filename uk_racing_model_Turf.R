@@ -109,8 +109,8 @@ model_vars = c(
   'weightcarried', # weight_relative
   'horseage',
   'daysoff',
-  'pace_pred',
-  'prizefund'
+  'pace_pred'
+  #'prizefund'
   #'goingabbrev'
   #'iphintsoverallpace'
   #'class_prior'
@@ -177,7 +177,7 @@ loss_reduction = 0.01
 source('uk_racing_model_tune.R') # tuning script
 
 # get test pnl df (with winprob ranks)
-test_pnl_dat <- pnl_df(c(1:1))
+test_pnl_dat <- pnl_df(c(1:4))
 # pnl tables
 conf_levels = c(0, 0.04, 0.1)
 for(i in 1:length(conf_levels)){
@@ -187,7 +187,7 @@ for(i in 1:length(conf_levels)){
 
 pnl_table(test_pnl_dat, c( 'surface', 'month' ), 0, 0.04, 0.1) 
   
-# pnl_table(test_pnl_dat, c( 'bsp_index', 'bsp_bin' ), mins[1], mins[2], mins[3])
+# pnl_table(test_pnl_dat, c( 'bsp_index', 'bsp_bin' ), 0, 0.04, 0.1)
 
 
 # export results

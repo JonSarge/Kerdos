@@ -49,12 +49,10 @@ pnl_df <- function(ranks){
     mutate(
       winprob_adj=winprob/sum(winprob),
       winprob_rank=dense_rank(-winprob_adj),
-      field_size = n(),
       win=ifelse(positionofficial==1, 1, 0),
       win=ifelse(sum(win)==2 & win==1, 0.5, win) # dead-heat adj
     ) %>% ungroup() %>%
-    mutate(month=month(meetingdate, label = TRUE, abbr = TRUE),
-           bsp_bin=gsub('0-2.5', '1.01-2.5', bsp_bin),
+    mutate(bsp_bin=gsub('0-2.5', '1.01-2.5', bsp_bin),
            bsp_index_all=1,
            pick=ifelse(winprob_rank %in% ranks, 1, 0),
            winprice=1/winprob_adj, # model price
@@ -70,7 +68,6 @@ pnl_df <- function(ranks){
 pnl_table <- function(dat, vars, val, conf, prob){
   x <- dat %>%
     filter(pick==1,
-           #kelly > k,
            exp_value > val, 
            conf_level > conf,
            winprob_adj > prob,
@@ -100,26 +97,28 @@ target_var = 'finish_group'
 
 # Predict finish position using tidymodels
 model_vars = c(
+  'kerdos_rating',
+  'rating_rank',
+  'bsp_prob_run1_fluc',
+  #'bsp_run1_fluc',
+  'bsp_prob',
   'field_size',
-  'raceclass', 
-  'draw',
+  #'raceclass', 
+  'draw_relative',
   'distance_m', 
-  'weightcarried', # weight_relative
+  'weightcarried', 
+  #'weight_relative',
   'horseage',
   'daysoff',
-  'pre_race_rating_adjusted',
-  'rating_rank',
-  'bsp_run1_fluc',
-  'bsp_prob',
-  'pace_pred',
-  'prizefund'
-  #'class_prior'
+  'pace_pred'
+  #'prizefund'
+  #'goingabbrev'
   #'iphintsoverallpace'
-  #'going' # UN-BRACKETED FACTORS 
+  #'class_prior'
   #'toprated',
   #'jockeyinform' # jockey ability more pronounced for all-weather (winter) 
   #'significantimprover',
- # 'hottrainer',
+  #'hottrainer',
   #'tissuepricedecimal'
   #'bharating', 
   #'rating0to100'
@@ -128,27 +127,16 @@ model_vars = c(
 )
 
 
-# modelling df w/ NA's (fill or remove NA's!!!)         
+# modelling df w. final filters    
 model_data <- pre_model_data %>%  
-  # final formatting
-  mutate(racesurfacename=case_when(
-    racesurfacename=='Turf' ~ 'T',
-    racesurfacename=='All Weather' ~ 'AW',
-    TRUE ~ racesurfacename
-  ),
-  # draw=ifelse(!draw %in% c(1:20), 20, draw), 
-  draw = nm(ch(draw))
-  ) %>%
-  # final model data filters
-  filter(!raceid %in% rating_anomalies$raceid,
-         racesurfacename == 'AW',
-         raceclass %in% c(5:6)
+  filter(!raceid %in% rating_anomalies$raceid, # CHECK THESE TO ADD BACK IN!!!
+         racesurfacename == 'All Weather',
+         raceclass %in% c(5:6),
+         !is.na(pace_pred) # FIX THIS!!!
   ) 
 
 # CHECK model data na's
-model_data_nas <- model_data %>% 
-  select(where(~ any(is.na(.)))) %>%
-  filter(if_any(everything(), is.na))
+model_data_nas <- model_data %>% select(where(~ any(is.na(.)))) %>% filter(if_any(everything(), is.na))
   
 
 # model formula
@@ -162,16 +150,11 @@ test_date_end = '2026-12-31'
 train_data <- model_data %>% 
   filter(meetingdate >= train_date_start,
          meetingdate < test_date_start,
-         numberofrunners >= 6, # only aapplied to training
-         #field_size == 'Medium',
-         rating_rank %in% c(1:6), # only aapplied to training
-         !is.na(pace_pred) # FIX THIS!!!
   ) %>%
-  select(raceid, all_of(model_vars), all_of(target_var)) # final select
+  select(raceid, meetingdate, all_of(model_vars), all_of(target_var)) # final select
 
 # check training data na's
 train_data_nas <- train_data %>% filter(if_any(everything(), is.na))
-
 
 
 #### tune xScore model ####
@@ -194,14 +177,20 @@ source('uk_racing_model_tune.R') # tuning script
 # get test pnl df (with winprob ranks)
 test_pnl_dat <- pnl_df(c(1:4))
 # pnl tables
-mins = c(0, 0, 0.1) # exp val; conf level; winprob min
-pnl_table(test_pnl_dat, c( 'surface', 'bsp_index_all' ), mins[1], mins[2], mins[3])
-pnl_table(test_pnl_dat, c( 'surface', 'month' ), mins[1], mins[2], mins[3]) 
+conf_levels = c(0, 0.04, 0.1)
+for(i in 1:length(conf_levels)){
+  mins = c(0, conf_levels[i], 0.1) # exp val; conf level; winprob min
+  print(cbind(pnl_table(test_pnl_dat, c( 'surface', 'bsp_index_all' ), mins[1], mins[2], mins[3]), conf=conf_levels[i]))
+}
+# months
+pnl_table(test_pnl_dat, c( 'surface', 'month' ), 0, 0.04, 0.1) 
+# bsp bins
+pnl_table(test_pnl_dat, c( 'bsp_index', 'bsp_bin' ), 0, 0.04, 0.1)
 
 
+# export results
+write.csv(test_pnl_dat, paste0('test_pnl_AW_', Sys.Date(), '.csv'), row.names = F, na='')
 
-
-#pnl_table(test_pnl_dat, c( 'bsp_index', 'bsp_bin' ), mins[1], mins[2], mins[3])
 
 # check field
 check_field_size <- test_pnl_dat %>% 
@@ -212,8 +201,6 @@ check_field_size <- test_pnl_dat %>%
 
 race_surface = test_pnl_dat %>% pull(surface) %>% unique()
 
-# export results
-write.csv(test_pnl_dat, paste0('test_pnl_', race_surface, '_',  Sys.Date(), '.csv'), row.names=F, na='')
 
 # send script to repo
 git_add("uk_racing_model.R")

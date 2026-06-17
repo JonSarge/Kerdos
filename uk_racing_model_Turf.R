@@ -68,7 +68,6 @@ pnl_df <- function(ranks){
 pnl_table <- function(dat, vars, val, conf, prob){
   x <- dat %>%
     filter(pick==1,
-           #kelly > k,
            exp_value > val, 
            conf_level > conf,
            winprob_adj > prob,
@@ -100,7 +99,8 @@ target_var = 'finish_group'
 model_vars = c(
   'kerdos_rating',
   'rating_rank',
-  'bsp_run1_fluc',
+  'bsp_prob_run1_fluc',
+  #'bsp_run1_fluc',
   'bsp_prob',
   'field_size',
   'raceclass', 
@@ -125,19 +125,16 @@ model_vars = c(
   #'rating123',
 )
 
-
-# modelling df w/ NA's (fill or remove NA's!!!)         
+# modelling df w. final filters    
 model_data <- pre_model_data %>%  
-  # final model data filters
   filter(!raceid %in% rating_anomalies$raceid, # CHECK THESE TO ADD BACK IN!!!
          racesurfacename == 'Turf',
-         raceclass %in% c(5:6)
+         raceclass %in% c(5:6),
+         !is.na(pace_pred) # FIX THIS!!!
   ) 
 
 # CHECK model data na's
-model_data_nas <- model_data %>% 
-  select(where(~ any(is.na(.)))) %>%
-  filter(if_any(everything(), is.na))
+model_data_nas <- model_data %>% select(where(~ any(is.na(.)))) %>% filter(if_any(everything(), is.na))
   
 
 # model formula
@@ -150,10 +147,9 @@ test_date_end = '2026-12-31'
 # training sample w final filtering
 train_data <- model_data %>% 
   filter(meetingdate >= train_date_start,
-         meetingdate < test_date_start,
-         !is.na(pace_pred) # FIX THIS!!!
+         meetingdate < test_date_start
   ) %>%
-  select(raceid, all_of(model_vars), all_of(target_var)) # final select
+  select(raceid, meetingdate, all_of(model_vars), all_of(target_var)) # final select
 
 # check training data na's
 train_data_nas <- train_data %>% filter(if_any(everything(), is.na))
@@ -187,11 +183,11 @@ for(i in 1:length(conf_levels)){
 
 pnl_table(test_pnl_dat, c( 'surface', 'month' ), 0, 0.04, 0.1) 
   
-# pnl_table(test_pnl_dat, c( 'bsp_index', 'bsp_bin' ), 0, 0.04, 0.1)
+pnl_table(test_pnl_dat, c( 'bsp_index', 'bsp_bin' ), 0, 0.0, 0.1)
 
 
 # export results
-write.csv(test_pnl_dat, paste0('test_pnl_', race_surface, '_',  Sys.Date(), '.csv'), row.names=F, na='')
+write.csv(test_pnl_dat, paste0('test_pnl_Turf_',  Sys.Date(), '.csv') , row.names=F, na='')
 
 # send script to repo
 git_add("uk_racing_model.R")

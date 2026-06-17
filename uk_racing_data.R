@@ -146,10 +146,13 @@ gb_flat_all_cols <- gb_racing_sql %>%
          bsp_log=log(betfairwinsp + 1),
          # market implied prob
          bsp_prob=1/betfairwinsp,
+         run1_bsp_prob=1/run1_betfairwinsp,
          # bsp run1 to run0 bsp fluc
          run1_betfairwinsp = ifelse(is.na(run1_betfairwinsp)|run1_betfairwinsp==0, betfairwinsp, run1_betfairwinsp),
          bsp_run1_fluc = (run1_betfairwinsp-betfairwinsp)/run1_betfairwinsp,
-         bsp_run1_fluc = ifelse(bsp_run1_fluc < -2, -2, bsp_run1_fluc)
+         bsp_run1_fluc = ifelse(bsp_run1_fluc < -2, -2, bsp_run1_fluc),
+         bsp_prob_run1_fluc = (bsp_prob - run1_bsp_prob)/run1_bsp_prob,
+         bsp_prob_run1_fluc = ifelse(is.na(bsp_prob_run1_fluc), 0, bsp_prob_run1_fluc)
          # cap bsp @ $100???
          #bsp = ifelse(betfairwinsp >= 100, 100, betfairwinsp),
   ) %>%

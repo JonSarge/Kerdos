@@ -21,7 +21,7 @@ fct=function(x){as.factor(x)}
 nm=function(x){as.numeric(x)}
 hms_times=function(x){format(as.POSIXct(x, origin="1970-01-01",tz="UTC"), '%H:%M')}
 
-con <- dbConnect(
+kon <- dbConnect(
   MariaDB(),
   user     = "avnadmin",
   password = "AVNS_hiTM-DHel0T90WLNRQx",
@@ -31,23 +31,40 @@ con <- dbConnect(
 )
 
 # raceclass NA fill
-raceclass_dat <- tbl(con, "gb_racing_data") |>
+raceclass_dat <- tbl(kon, "gb_racing_data") |>
   select(raceid, scheduledtimeofracegmt, countrycode, coursename, racenumber, 
-         racetype, racesurfacename, raceclass, racecode, prizefund, ratinglimitupper,
-         run1_raceid, run1_meetingdate, run1_coursename, run1_racesurfacename,
-         run1_raceclass, run1_racecode, run1_racetype, run1_ratinglimitupper, 
-         run1_prizefund) %>%
-  # impute Group & Listed NA's
-  mutate(raceclass=ifelse(racecode %in% c('G1','G2','G3','L'), 1, raceclass),
-         run1_raceclass=ifelse(run1_racecode %in% c('G1','G2','G3','L'), 1, run1_raceclass)) %>%
-  filter(scheduledtimeofracegmt >= "2024-01-01",
-         countrycode == 'GBR',
+         racetype, racesurfacename, raceclass, racecode, prizefund, ratinglimitupper
+         # run1_raceid, run1_meetingdate, run1_coursename, run1_racesurfacename,
+         # run1_raceclass, run1_racecode, run1_racetype, run1_ratinglimitupper, 
+         # run1_prizefund
+         ) %>%
+  filter(countrycode == 'GBR',
          racetype == 'Flat') %>%
   distinct() %>%
-  collect()
+  collect() %>%
+  mutate(across(c(raceclass, racecode), ~as.factor(.)))
 
-# filter na's by raceid
-raceclass_nas <- raceclass_dat %>% filter(is.na(raceclass))
+raceclass_model_df <- raceclass_dat %>% 
+  filter(!is.na(raceclass),
+         !is.na(prizefund),
+         is.finite(prizefund),   # Fix 2: drop Inf/-Inf rows
+         racecode %in% c('I', 'P', 'G')) %>%
+  mutate(prizefund_scaled = scale(prizefund)[, 1]) %>%
+  slice_sample(n=1000)
+
+train_dat <-  raceclass_model_df %>% slice_sample(prop = 0.8)
+test_dat <- raceclass_model_df %>% filter(!raceid %in% train_dat$raceid)
+
+model <- MASS::polr(raceclass ~ prizefund, data = train_dat, Hess = TRUE)
+
+
+# raceclass rating limmits for coding NA's (no need for modelling)
+raceclass_model_df  %>% 
+  filter(!is.na(ratinglimitupper), ratinglimitupper>0) %>% 
+  group_by(raceclass) %>% 
+  summarise(n(), min(ratinglimitupper), max(ratinglimitupper))
+  
+
 
 # remove NA raceclass races with run1_prizefund=0 & run1_ratingupperlimit=0/NA
 run1_raceclass_nas <- raceclass_dat %>% 

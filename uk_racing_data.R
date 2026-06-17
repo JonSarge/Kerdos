@@ -38,7 +38,7 @@ options(dplyr.summarise.inform = FALSE); options(scipen=99)
 if ("package:RMySQL" %in% search()) {
   detach("package:RMySQL", unload = TRUE)
 }
-con <- dbConnect(
+kon <- dbConnect(
   MariaDB(),
   user     = "avnadmin",
   password = "AVNS_hiTM-DHel0T90WLNRQx",
@@ -54,7 +54,7 @@ con <- dbConnect(
   # load('gb_racing_2022_2026.rda')
 
 # load relevant raw Kerdos data (pre-feature engineering)
-gb_racing_sql <- dbGetQuery(con, "select distinct * from gb_racing_data where scheduledtimeofracegmt >= '2024-01-01'")
+gb_racing_sql <- dbGetQuery(kon, "select distinct * from gb_racing_data where scheduledtimeofracegmt >= '2024-01-01'")
 
 # load recent raw data from Mike and select relevant (stored) cols only
 gb_data_recent <- read.csv("gb_recent_data.csv") %>% select(names(gb_racing_sql))
@@ -81,7 +81,8 @@ gb_flat_all_cols <- gb_racing_sql %>%
   
   # add relevant vars (win, profit etc)
   mutate(meetingdate=as.Date(scheduledtimeofracegmt),
-         year=year(scheduledtimeofracegmt),
+         year=year(meetingdate),
+         month=month(meetingdate, label = TRUE, abbr = TRUE),
          # target variable
          finish_group = case_when(
            positionofficial == 1 ~ "Win",
@@ -106,21 +107,33 @@ gb_flat_all_cols <- gb_racing_sql %>%
            draw_relative > 0.67 & draw_relative <= 0.9 ~ 'Middle',
            TRUE ~ 'Wide'
          ),
-         # Create relative weight feature
-         weight_relative = scale(weightcarried)[,1],
-         # pace prediction
-         pace_pred = nm(str_extract(pacemapdata, '\\d+$')),
-         # class diff - fix NA's in run1_raceclass with regression model
+         # fill raceclass NA's
+         raceclass_pred = case_when(
+           racecode %in% c('G1','G2','G3','L') ~ 1,
+           ratinglimitupper > 105 ~ 1, # CHECK THIS!!!
+           between(ratinglimitupper, 100, 105) ~ 2,
+           between(ratinglimitupper, 86, 99) ~ 3,
+           between(ratinglimitupper, 76, 85) ~ 4,
+           between(ratinglimitupper, 66, 75) ~ 5,
+           between(ratinglimitupper, 45, 65) ~ 6,
+           TRUE ~ raceclass
+         ),
+         raceclass = ifelse(is.na(raceclass), raceclass_pred, raceclass),
+         # class changes
          class_prior = case_when(
            raceclass > run1_raceclass ~ 'Down',
            raceclass < run1_raceclass ~ 'Up',
            raceclass == run1_raceclass ~ 'Same',
            TRUE ~ NA  
          ),
+         # Create relative weight feature
+         weight_relative = scale(weightcarried)[,1],
          # convert distance to meters
          distance_m=distance*201.168,
          #daysoff adj
          daysoff = ifelse(is.na(daysoff), 0, daysoff),
+         # pace prediction
+         pace_pred = nm(str_extract(pacemapdata, '\\d+$')),
          # win vars
          win=ifelse(positionofficial == 1, 1, 0),
          win_place=ifelse(positionofficial %in% c(1, 2, 3), 1, 0),
@@ -285,7 +298,7 @@ run1_bsp_nas <- pre_model_data %>% filter(is.na(run1_betfairwinsp))
 
 
 # get col max string lengths - compare to sql
-cols <- dbGetQuery(con, "SHOW COLUMNS FROM gb_racing_data")
+cols <- dbGetQuery(kon, "SHOW COLUMNS FROM gb_racing_data")
 sql_lengths <- cols %>%
   mutate(max_length = as.integer(str_match(cols$Type, "\\((\\d+)\\)")[, 2])) %>%
   select(-c(Type:Extra))
@@ -300,14 +313,16 @@ if(nrow(string_lengths)>0) "UPDATE SQL STRING LENGTH MAX"
 # attach new data
 if(loadNewData == 1 & nrow(string_lengths)==0){
   # ids stored in sql
-  stored_raceids <- dbGetQuery(con, 'select distinct raceid from gb_racing_data')
+  stored_raceids <- dbGetQuery(kon, 'select distinct raceid from gb_racing_data')
   # append newly added data
   pre_model_data_sql <- pre_model_data %>% 
     filter(!raceid %in% stored_raceids$raceid) %>% 
     select(names(gb_racing_sql))
   # append new data
-  if(nrow(pre_model_data_sql)>0) dbWriteTable(con, name='gb_racing_data', value=pre_model_data_sql, append=T, row.names=F)
+  if(nrow(pre_model_data_sql)>0) dbWriteTable(kon, name='gb_racing_data', value=pre_model_data_sql, append=T, row.names=F)
 }
+
+dbDisconnect(kon)
 
 # send season data back to repo
 # git_add("uk_racing_data.R")

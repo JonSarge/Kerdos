@@ -180,10 +180,14 @@ for(i in 1:length(conf_levels)){
   mins = c(0, conf_levels[i], 0.1) # exp val; conf level; winprob min
   print(cbind(pnl_table(test_pnl_dat, c( 'surface', 'bsp_index_all' ), mins[1], mins[2], mins[3]), conf=conf_levels[i]))
 }
-
-pnl_table(test_pnl_dat, c( 'surface', 'month' ), 0, 0.04, 0.1) 
-  
-pnl_table(test_pnl_dat, c( 'bsp_index', 'bsp_bin' ), 0, 0.0, 0.1)
+# months
+pnl_table(test_pnl_dat, c( 'surface', 'month' ), 0, 0.0, 0.1) 
+# bsp bins
+pnl_table(test_pnl_dat, c( 'surface', 'bsp_index', 'bsp_bin' ), 0, 0.0, 0.1)
+# overall
+pnl_table(test_pnl_dat, c( 'surface', 'bsp_index_all' ), 0, 0, 0.1)
+# winprob rank
+pnl_table(test_pnl_dat, c( 'surface', 'winprob_rank' ), 0, 0, 0.1)
 
 
 # export results

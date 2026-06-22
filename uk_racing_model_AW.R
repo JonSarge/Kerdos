@@ -175,7 +175,7 @@ loss_reduction = 0.01
 source('uk_racing_model_tune.R') # tuning script
 
 # get test pnl df (with winprob ranks)
-test_pnl_dat <- pnl_df(c(1:4))
+test_pnl_dat <- pnl_df(c(1:6))
 # pnl tables
 conf_levels = c(0, 0.04, 0.1)
 for(i in 1:length(conf_levels)){
@@ -185,7 +185,13 @@ for(i in 1:length(conf_levels)){
 # months
 pnl_table(test_pnl_dat, c( 'surface', 'month' ), 0, 0.04, 0.1) 
 # bsp bins
-pnl_table(test_pnl_dat, c( 'bsp_index', 'bsp_bin' ), 0, 0.04, 0.1)
+pnl_table(test_pnl_dat, c( 'surface', 'bsp_index', 'bsp_bin' ), 0, 0.04, 0.1)
+# overall
+pnl_table(test_pnl_dat, c( 'surface', 'bsp_index_all' ), 0, 0, 0.1)
+# winprob rank
+pnl_table(test_pnl_dat, c( 'surface', 'winprob_rank' ), 0, 0, 0.1)
+
+
 
 
 # export results

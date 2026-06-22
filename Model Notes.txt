@@ -1,12 +1,14 @@
 Kerdos Work Plan (ongoing)
 
-1. Investigate the ratings anomalies excluded sample - create more recommendations
+1. T & AW C1-4 models
 
-2. Price flucs
+2. Investigate the ratings anomalies excluded sample - create more recommendations
 
-3. Drill down more into Venue * Draw * Distance
+3. Price flucs
 
-4. Jockey/Trainer ratings
+4. Drill down more into Venue * Draw * Distance
+
+5. Jockey/Trainer ratings
 
 
 
@@ -15,3 +17,7 @@ Model Notes
 1. Check winprob_rank for ties - should be 1, 1, 3, 4...
 
 2. Check Mike's model-market discreps
+
+3. Run model through Claude again
+  - try a win-loss XGBoost model
+  - ask to review & improve the model accuracy, ignoring PnL 

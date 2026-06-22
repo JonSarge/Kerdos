@@ -282,7 +282,8 @@ pre_model_data <- gb_flat_all_cols %>%
          kerdos_rating = nm(scale(pre_race_rating_adjusted_y)), # z-value
          kerdos_rating_adj = pnorm(kerdos_rating) * 100, # 0-100 adj
          # add k-rating rank per race here (after any filtering) 
-         rating_rank=dense_rank(-pre_race_rating_adjusted)) %>% ungroup() %>%
+         rating_rank=rank(-kerdos_rating, ties.method="min")
+         ) %>% ungroup() %>%
   relocate(kerdos_rating, kerdos_rating_adj, .after=pre_race_rating_adjusted) %>%
   select(!c(all_of(na_cols), all_of(zero_cols))) %>%
   arrange(scheduledtimeofracegmt, saddlecloth)

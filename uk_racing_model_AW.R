@@ -87,10 +87,16 @@ chart.rpart<-function(model, title){rpart.plot(model, digits=3, type=3, extra = 
 cl <- makePSOCKcluster(parallel::detectCores() - 1)
 registerDoParallel(cl)
 
-# update data
+manualUpload = 0
 loadNewData = 0
-# load data
+
+if(manualUpload==1){
+# manually load data
+load('gb_pre_model_data.rda')
+} else {
+# generate from raw csv data
 source('uk_racing_data.R')
+}
 
 # target var
 target_var = 'finish_group'
@@ -101,18 +107,19 @@ model_vars = c(
   'rating_rank',
   'bsp_prob_run1_fluc',
   #'bsp_run1_fluc',
-  'bsp_prob',
+  'bsp_log',
   'field_size',
-  #'raceclass', 
+  'raceclass', 
+  #'racecode',
   'draw_relative',
   'distance_m', 
   'weightcarried', 
   #'weight_relative',
   'horseage',
   'daysoff',
-  'pace_pred'
+  'pace_pred',
   #'prizefund'
-  #'goingabbrev'
+  'goingabbrev'
   #'iphintsoverallpace'
   #'class_prior'
   #'toprated',
@@ -192,6 +199,8 @@ pnl_table(test_pnl_dat, c( 'surface', 'bsp_index_all' ), 0, 0, 0.1)
 pnl_table(test_pnl_dat, c( 'surface', 'winprob_rank' ), 0, 0, 0.1)
 
 
+# feature weighting
+xgb_weights <- extract_fit_engine(final_model) %>% vi
 
 
 # export results

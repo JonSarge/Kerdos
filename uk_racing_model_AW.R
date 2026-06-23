@@ -87,12 +87,13 @@ chart.rpart<-function(model, title){rpart.plot(model, digits=3, type=3, extra = 
 cl <- makePSOCKcluster(parallel::detectCores() - 1)
 registerDoParallel(cl)
 
-manualUpload = 0
+manualUpload = 1
 loadNewData = 0
 
 if(manualUpload==1){
 # manually load data
 load('gb_pre_model_data.rda')
+load('rating_anomalies.rda')
 } else {
 # generate from raw csv data
 source('uk_racing_data.R')

@@ -107,7 +107,7 @@ model_vars = c(
   'rating_rank',
   'bsp_prob_run1_fluc',
   #'bsp_run1_fluc',
-  'bsp_log',
+  'bsp_prob',
   'field_size',
   'raceclass', 
   #'racecode',

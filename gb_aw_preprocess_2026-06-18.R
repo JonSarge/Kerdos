@@ -20,10 +20,10 @@ library(tidymodels)
 #### LOAD SOURCE/MODEL DATA ####
 
 # load recent race data to match software winprobs to
-gb_pre_race_data <- read.csv('gb_aw_test_data.csv')
+gb_pre_race_data <- read.csv('performance_data_2026-06-23_to_2026-06-23_1782200208628.csv')
 
 # load rds model object
-final_model <- readRDS('gb_aw_winprobs_2026-06-18.rds')
+final_model <- readRDS('gb_turf_winprobs_2026-06-23.rds')
 
 ##################################
 

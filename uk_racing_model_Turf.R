@@ -88,7 +88,7 @@ chart.rpart<-function(model, title){rpart.plot(model, digits=3, type=3, extra = 
 cl <- makePSOCKcluster(parallel::detectCores() - 1)
 registerDoParallel(cl)
 
-manualUpload = 1
+manualUpload = 0
 loadNewData = 0
 
 if(manualUpload==1){
@@ -181,7 +181,7 @@ loss_reduction = 0.01
 source('uk_racing_model_tune.R') # tuning script
 
 # get test pnl df (with winprob ranks)
-test_pnl_dat <- pnl_df(c(1:4))
+test_pnl_dat <- pnl_df(c(1:6))
 # pnl tables
 conf_levels = c(0, 0.04, 0.1)
 for(i in 1:length(conf_levels)){
@@ -203,6 +203,10 @@ write.csv(test_pnl_dat, paste0('test_pnl_Turf_',  Sys.Date(), '.csv') , row.name
 
 # save rds file
 saveRDS(final_model, file = 'gb_turf_winprobs_2026-06-24.rds')
+
+
+
+
 
 # send script to repo
 git_add("uk_racing_model.R")

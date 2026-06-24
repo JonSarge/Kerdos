@@ -23,7 +23,7 @@ library(tidymodels)
 gb_pre_race_data <- read.csv('performance_data_2026-06-23_to_2026-06-23_1782200208628.csv')
 
 # load rds model object
-final_model <- readRDS('gb_turf_winprobs_2026-06-23.rds')
+final_model <- readRDS('gb_turf_winprobs_2026-06-24.rds')
 
 ##################################
 
@@ -129,14 +129,14 @@ gb_race_test_data <- gb_pre_race_data %>%
 
   ) %>%
   # filter out non-runners (for post-race data matching only)
-  filter(positionofficial > 0) %>%
+  #filter(positionofficial > 0) %>%
   # race-specific vars
   group_by(raceid) %>%
-  mutate(fave_price=min(ispdecimal),
+  mutate(#fave_price=min(ispdecimal),
          # stanardise kerdos rating
          kerdos_rating = as.numeric(scale(pre_race_rating_adjusted)),
          # add kerdos rating rank per race 
-         rating_rank=dense_rank(-pre_race_rating_adjusted)) %>% 
+         rating_rank=rank(-kerdos_rating, ties.method="min")) %>% 
   ungroup() %>%
   # factor vars
   mutate(across(all_of(factor_vars), ~as.factor(.))) %>%
@@ -144,7 +144,7 @@ gb_race_test_data <- gb_pre_race_data %>%
   select(all_of(race_vars), target_var, all_of(model_vars)) %>%
   arrange(scheduledtimeofracegmt) %>%
   # final filters
-  filter(racesurfacename == 'All Weather',
+  filter(racesurfacename == 'Turf',
          raceclass %in% c(5:6))
          
 
@@ -158,7 +158,8 @@ gb_race_test_preds <- gb_race_test_data %>%
   rename(winprob=.pred_Win) %>%
   # sum(winprob)=1.0
   group_by(raceid) %>%
-  mutate(winprob_adj=winprob/sum(winprob)) %>%
+  mutate(winprob_adj=winprob/sum(winprob),
+         winprice=1/winprob_adj) %>%
   ungroup()
 
 

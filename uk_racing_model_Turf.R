@@ -40,6 +40,7 @@ ch=function(x){as.character(x)}
 fct=function(x){as.factor(x)}
 nm=function(x){as.numeric(x)}
 hms_times=function(x){format(as.POSIXct(x, origin="1970-01-01",tz="UTC"), '%H:%M')}
+options(dplyr.summarise.inform = FALSE)
 # gerenerate test pnl df 
 pnl_df <- function(ranks){
   dat <- bind_cols(test_data, 
@@ -199,6 +200,9 @@ pnl_table(test_pnl_dat, c( 'surface', 'winprob_rank' ), 0, 0, 0.1)
 
 # export results
 write.csv(test_pnl_dat, paste0('test_pnl_Turf_',  Sys.Date(), '.csv') , row.names=F, na='')
+
+# save rds file
+saveRDS(final_model, file = 'gb_turf_winprobs_2026-06-24.rds')
 
 # send script to repo
 git_add("uk_racing_model.R")

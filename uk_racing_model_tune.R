@@ -48,7 +48,7 @@ recipe_ml <- recipe(model_formula, data = train_data) %>%
   # Remove highly correlated predictors
   step_corr(all_numeric_predictors(), threshold = 0.9) # %>%
   # SMOTE on Win and Place classes
- # step_smote(finish_group, over_ratio = 0.5, skip = TRUE) # %>%
+  #step_smote(finish_group, over_ratio = 0.5, skip = TRUE) # %>%
   # interaction terms
   #step_interact(terms = ~ bsp_prob:kerdos_rating) 
 

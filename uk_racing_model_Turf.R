@@ -108,7 +108,6 @@ model_vars = c(
   'kerdos_rating',
   'rating_rank',
   'bsp_prob_run1_fluc',
-  #'bsp_run1_fluc',
   'bsp_prob',
   'field_size',
   'raceclass', 
@@ -181,7 +180,7 @@ loss_reduction = 0.01
 source('uk_racing_model_tune.R') # tuning script
 
 # get test pnl df (with winprob ranks)
-test_pnl_dat <- pnl_df(c(1:6))
+test_pnl_dat <- pnl_df(c(1:4))
 # pnl tables
 conf_levels = c(0, 0.04, 0.1)
 for(i in 1:length(conf_levels)){

@@ -20,10 +20,10 @@ library(tidymodels)
 #### LOAD SOURCE/MODEL DATA ####
 
 # load recent race data to match software winprobs to
-gb_pre_race_data <- read.csv('FL Race.csv')
+gb_pre_race_data <- read.csv('performance_data_2026-06-25.csv')
 
 # load rds model object
-final_model <- readRDS('gb_turf_winprobs_2026-06-24.rds')
+final_model <- readRDS('gb_turf_winprobs_TEST.rds')
 
 ##################################
 
@@ -124,7 +124,7 @@ gb_race_test_data <- gb_pre_race_data %>%
          run1_betfairwinsp = ifelse(is.na(run1_betfairwinsp)|run1_betfairwinsp==0, betfairwinsp, run1_betfairwinsp),
          bsp_run1_fluc = (run1_betfairwinsp-betfairwinsp)/run1_betfairwinsp,
          bsp_run1_fluc = ifelse(bsp_run1_fluc < -2, -2, bsp_run1_fluc),
-         bsp_prob_run1_fluc = (bsp_prob - run1_bsp_prob)/run1_bsp_prob,
+         bsp_prob_run1_fluc = bsp_prob - run1_bsp_prob, # (bsp_prob - run1_bsp_prob)/run1_bsp_prob,
          bsp_prob_run1_fluc = ifelse(is.na(bsp_prob_run1_fluc), 0, bsp_prob_run1_fluc)
 
   ) %>%
@@ -158,8 +158,10 @@ gb_race_test_preds <- gb_race_test_data %>%
   rename(winprob=.pred_Win) %>%
   # sum(winprob)=1.0
   group_by(raceid) %>%
-  mutate(winprob_adj=winprob/sum(winprob),
-         winprice=1/winprob_adj) %>%
+  mutate(bsp = 1/bsp_prob,
+         winprob_adj=winprob/sum(winprob),
+         winprice=1/winprob,
+         winprice_adj=1/winprob_adj) %>%
   ungroup()
 
 

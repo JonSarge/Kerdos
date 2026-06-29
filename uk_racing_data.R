@@ -34,19 +34,6 @@ fct=function(x){as.factor(x)}
 nm=function(x){as.numeric(x)}
 options(dplyr.summarise.inform = FALSE); options(scipen=99)
 
-# SQL connection
-if ("package:RMySQL" %in% search()) {
-  detach("package:RMySQL", unload = TRUE)
-}
-kon <- dbConnect(
-  MariaDB(),
-  user     = "avnadmin",
-  password = "AVNS_hiTM-DHel0T90WLNRQx",
-  dbname   = "master-db",
-  host     = "mysql-20d0ecf2-jonsargent15-c8e7.c.aivencloud.com",
-  port     = 24081
-)
-
 
 #### LOAD SOURCE DATA from wd ####
 
@@ -54,10 +41,25 @@ kon <- dbConnect(
   # load('gb_racing_2022_2026.rda')
 
 # load relevant raw Kerdos data (pre-feature engineering)
-gb_racing_sql <- dbGetQuery(kon, "select distinct * from gb_racing_data where scheduledtimeofracegmt >= '2024-01-01'")
+if(!exists('gb_racing_sql')){
+  # SQL connection
+  kon <- dbConnect(
+    MariaDB(),
+    user     = "avnadmin",
+    password = "AVNS_hiTM-DHel0T90WLNRQx",
+    dbname   = "master-db",
+    host     = "mysql-20d0ecf2-jonsargent15-c8e7.c.aivencloud.com",
+    port     = 24081
+  )
+  # get sql data
+  gb_racing_sql <- dbGetQuery(kon, "select distinct * from gb_racing_data where scheduledtimeofracegmt >= '2024-01-01'")
+}
 
 # load recent raw data from Mike and select relevant (stored) cols only
-gb_data_recent <- read.csv("gb_recent_data.csv") %>% select(names(gb_racing_sql))
+gb_data_recent <- read.csv("FL Race.csv") %>% 
+  select(names(gb_racing_sql)) %>%
+  mutate(raceid=ch(raceid),
+         positionofficial=99)
 
 
 #### FEATURE ENGINEERING #####
@@ -146,16 +148,14 @@ gb_flat_all_cols <- gb_racing_sql %>%
          bsp_log=log(betfairwinsp + 1),
          # market implied prob
          bsp_prob=1/betfairwinsp,
+         bsp_log_odds = log(bsp_prob/(1 - bsp_prob)),
          run1_bsp_prob=1/run1_betfairwinsp,
          # bsp run1 to run0 bsp fluc
          run1_betfairwinsp = ifelse(is.na(run1_betfairwinsp)|run1_betfairwinsp==0, betfairwinsp, run1_betfairwinsp),
          bsp_run1_fluc = (run1_betfairwinsp-betfairwinsp)/run1_betfairwinsp,
          bsp_run1_fluc = ifelse(bsp_run1_fluc < -2, -2, bsp_run1_fluc),
-         bsp_prob_run1_fluc = bsp_prob - run1_bsp_prob, # (bsp_prob - run1_bsp_prob)/run1_bsp_prob,
-         bsp_prob_run1_fluc = ifelse(is.na(bsp_prob_run1_fluc), 0, bsp_prob_run1_fluc)
-         # cap bsp @ $100???
-         #bsp = ifelse(betfairwinsp >= 100, 100, betfairwinsp),
-  ) %>%
+         bsp_prob_run1_fluc = (bsp_prob - run1_bsp_prob)/run1_bsp_prob,
+         bsp_prob_run1_fluc = ifelse(is.na(bsp_prob_run1_fluc), 0, bsp_prob_run1_fluc)) %>%
   # race-specific vars
   group_by(raceid) %>%
   mutate(fave_price=min(ispdecimal)) %>% 

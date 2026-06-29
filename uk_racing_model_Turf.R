@@ -89,7 +89,7 @@ cl <- makePSOCKcluster(parallel::detectCores() - 1)
 registerDoParallel(cl)
 
 manualUpload = 0
-loadNewData = 0
+loadNewData = 1
 
 if(manualUpload==1){
   # manually load data

@@ -72,6 +72,7 @@ pnl_table <- function(dat, vars, val, conf, prob){
            exp_value > val, 
            conf_level > conf,
            winprob_adj > prob,
+           #bsp_index %in% c(1:5)
     ) %>%
     group_by(across(all_of(vars))) %>% # bsp_index, bsp_bin
     summarise(bets=sum(pick), 
@@ -82,7 +83,6 @@ pnl_table <- function(dat, vars, val, conf, prob){
   return(x)
   return(sum(x$profit)/sum(x$bets))
 }
-chart.rpart<-function(model, title){rpart.plot(model, digits=3, type=3, extra = 101, main=title)}
 
 # Set up parallel processing
 cl <- makePSOCKcluster(parallel::detectCores() - 1)
@@ -108,7 +108,9 @@ model_vars = c(
   'kerdos_rating',
   'rating_rank',
   'bsp_prob_run1_fluc',
-  'bsp_prob',
+  #'fave_price',
+  #'bsp_prob_1',
+  'bsp_rank',
   'field_size',
   'raceclass', 
   'draw_relative',
@@ -118,7 +120,7 @@ model_vars = c(
   'daysoff',
   'pace_pred'
   #'prizefund'
-  #'goingabbrev'
+  #'goingabbrev',
   #'iphintsoverallpace'
   #'class_prior'
   #'toprated',
@@ -195,6 +197,15 @@ pnl_table(test_pnl_dat, c( 'surface', 'bsp_index', 'bsp_bin' ), 0, 0.0, 0.1)
 pnl_table(test_pnl_dat, c( 'surface', 'bsp_index_all' ), 0, 0, 0.1)
 # winprob rank
 pnl_table(test_pnl_dat, c( 'surface', 'winprob_rank' ), 0, 0, 0.1)
+
+
+# Muhir movements
+check_winprices <- test_pnl_dat %>% 
+  filter(raceid %in% c(1:6) & horsename == 'MUHIB') %>%
+  select(raceid, horsename, betfairwinsp, 
+         winprob, winprob_adj, winprice)
+
+
 
 
 # export results

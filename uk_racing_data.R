@@ -147,8 +147,12 @@ gb_flat_all_cols <- gb_racing_sql %>%
          # Log transform odds to reduce skewness
          bsp_log=log(betfairwinsp + 1),
          # market implied prob
-         bsp_prob=1/betfairwinsp,
-         bsp_log_odds = log(bsp_prob/(1 - bsp_prob)),
+         bsp_prob=(1/betfairwinsp),
+         bsp_prob_1=sqrt(1/betfairwinsp),
+         #bsp_logit = log(bsp_prob / (1 - bsp_prob)),
+         #bsp_logit_damped = bsp_logit * 0.3,     # scale factor controls strength
+         #bsp_prob = plogis(bsp_logit_damped),
+
          run1_bsp_prob=1/run1_betfairwinsp,
          # bsp run1 to run0 bsp fluc
          run1_betfairwinsp = ifelse(is.na(run1_betfairwinsp)|run1_betfairwinsp==0, betfairwinsp, run1_betfairwinsp),
@@ -227,19 +231,6 @@ hist(tf_ratings$preraceadjustedrating, main='Timeform Master Rating', xlab='Rati
 
 #### Feature engineering ####
 
-# numeric vars
-numeric_vars = c('distance', 'draw_relative', 'distancecumulative', 'distancebeaten', 'ispdecimal', 'betfairwinsp', 'betfairplacesp', 'weightcarried', 
-                 'daysoff', 'lastrunflat', 'horseage', 'eligibilityagemin', 'bharating', 'bsp_run1_fluc',
-                 'wfa', 'apprenticeclaim', 'weightcarried', 'weight_adjustment', 'ratinglimitupper', 'preraceepf', 'pre_race_rating_raw', 
-                 'postrace_rating_raw', 'pre_race_rating_adjusted', 'preraceadjustedrating', 'preracemasterrating', 'kerdos_rating',
-                 'performancerating', 'ratingsadjustment', 'adj_figure', 'timefigure', 'bharating', 'tissuepricedecimal', 'rating0to100', 'numberofrunners', # 'weight_relative', 
-                 'winsatcourse', 'winsatdistance', 'winsatcoursedistance', 'prizefund'
-)
-
-# prior run vars
-run1_vars = c('run1_raceid', 'run1_meetingdate', 'run1_coursename', 'run1_positionofficial', 'run1_raceclass', 'run1_racecode', 'run1_racetype',
-              'run1_ratinglimitupper', 'run1_prizefund', 'run1_racesurfacename', 'run1_betfairwinsp')
-
 # factor vars
 factor_vars = c('racenumber', 'draw', 'draw_bin', 'positionofficial', 'horsegender', 'distancetype', 'racetype', 'raceclass',  
                 'racesurfacename',  'racecode', 'going',  'iphintsoverallpace', 'pacemapdata', 'field_size',
@@ -247,16 +238,6 @@ factor_vars = c('racenumber', 'draw', 'draw_bin', 'positionofficial', 'horsegend
                 'toprated', 'hottrainer', 'eligibilitysexlimit', 'preracemastersymbol', 'hotrace', 'pre_race_rating_symbol_for_16'
 ) # 'pacemapsidealposition', 'pre_race_rating_symbol', 
 
-# leave these out
-excl_vars <- c('scheduledtimeofracelocal',	'racetitle',	'distancetext',	'distanceyards',	'distancefurlongs',	
-               'courseextraid',	'eligibilityagemax',	'ratinglimitlower',	'resultsstatus', 'trw1',	'trw2',	'trw3',	'trw4',	'trw5',	
-               'tfwfa',	'positionstatus',	'ispfavtext',	'ownercode',	'ownerfullname', 'performancesymbol',	'tissuepricefractional',	
-               'statusdescription', 'statusid',	'betfairbackprice',	'crsdiswinfavtext',	'bfselectionid',	'sportsbookdecimalodds',	
-               'sportsbookfractionalodds', 'masterinplaysymbol',	'pre_race_rating_symbol',	'sirehistoricalrating',	
-               'sirehistoricalsymbol',	'sireratingdisplay', 'damname',	'damhistoricalrating',	'damhistoricalsymbol',	'damratingdisplay',	
-               'damsirename',	'damsirehistoricalrating', 'damsirehistoricalsymbol',	'damsireratingdisplay',	'foalingdate',	'sirecd',	
-               'pacemapsidealposition', 'ispfractional', 'postrace_rating_symbol', 'jockeyuplift', 'traineruplift', 'horsesforcoursepos', 
-               'horsesforcoursesneg', 'warninghorse', 'bsp_run1_fluc')
 
 # CHECK all NA/Zero columns
 na_zero_cols_df <- gb_flat_all_cols %>% select(raceid, scheduledtimeofracegmt, coursename, where(~all(.==0, na.rm=TRUE)))
@@ -282,7 +263,10 @@ pre_model_data <- gb_flat_all_cols %>%
          kerdos_rating = nm(scale(pre_race_rating_adjusted_y)), # z-value
          kerdos_rating_adj = pnorm(kerdos_rating) * 100, # 0-100 adj
          # add k-rating rank per race here (after any filtering) 
-         rating_rank=rank(-kerdos_rating, ties.method="min"),
+         #bsp_prob = bsp_prob/sum(bsp_prob),
+         rating_rank=rank(-kerdos_rating, ties.method="min")/numberofrunners,
+         bsp_rank=rank(betfairwinsp, ties.method="min")/numberofrunners
+         
          ) %>% ungroup() %>%
   relocate(kerdos_rating, kerdos_rating_adj, .after=pre_race_rating_adjusted) %>%
   select(!c(all_of(na_cols), all_of(zero_cols))) %>%
@@ -327,6 +311,32 @@ if(loadNewData == 1 & nrow(string_lengths)==0){
 }
 
 dbDisconnect(kon)
+
+
+
+# numeric vars
+numeric_vars = c('distance', 'draw_relative', 'distancecumulative', 'distancebeaten', 'ispdecimal', 'betfairwinsp', 'betfairplacesp', 'weightcarried', 
+                 'daysoff', 'lastrunflat', 'horseage', 'eligibilityagemin', 'bharating', 'bsp_run1_fluc',
+                 'wfa', 'apprenticeclaim', 'weightcarried', 'weight_adjustment', 'ratinglimitupper', 'preraceepf', 'pre_race_rating_raw', 
+                 'postrace_rating_raw', 'pre_race_rating_adjusted', 'preraceadjustedrating', 'preracemasterrating', 'kerdos_rating',
+                 'performancerating', 'ratingsadjustment', 'adj_figure', 'timefigure', 'bharating', 'tissuepricedecimal', 'rating0to100', 'numberofrunners', # 'weight_relative', 
+                 'winsatcourse', 'winsatdistance', 'winsatcoursedistance', 'prizefund'
+)
+
+# prior run vars
+run1_vars = c('run1_raceid', 'run1_meetingdate', 'run1_coursename', 'run1_positionofficial', 'run1_raceclass', 'run1_racecode', 'run1_racetype',
+              'run1_ratinglimitupper', 'run1_prizefund', 'run1_racesurfacename', 'run1_betfairwinsp')
+
+# leave these out
+excl_vars <- c('scheduledtimeofracelocal',	'racetitle',	'distancetext',	'distanceyards',	'distancefurlongs',	
+               'courseextraid',	'eligibilityagemax',	'ratinglimitlower',	'resultsstatus', 'trw1',	'trw2',	'trw3',	'trw4',	'trw5',	
+               'tfwfa',	'positionstatus',	'ispfavtext',	'ownercode',	'ownerfullname', 'performancesymbol',	'tissuepricefractional',	
+               'statusdescription', 'statusid',	'betfairbackprice',	'crsdiswinfavtext',	'bfselectionid',	'sportsbookdecimalodds',	
+               'sportsbookfractionalodds', 'masterinplaysymbol',	'pre_race_rating_symbol',	'sirehistoricalrating',	
+               'sirehistoricalsymbol',	'sireratingdisplay', 'damname',	'damhistoricalrating',	'damhistoricalsymbol',	'damratingdisplay',	
+               'damsirename',	'damsirehistoricalrating', 'damsirehistoricalsymbol',	'damsireratingdisplay',	'foalingdate',	'sirecd',	
+               'pacemapsidealposition', 'ispfractional', 'postrace_rating_symbol', 'jockeyuplift', 'traineruplift', 'horsesforcoursepos', 
+               'horsesforcoursesneg', 'warninghorse', 'bsp_run1_fluc')
 
 # send season data back to repo
 # git_add("uk_racing_data.R")

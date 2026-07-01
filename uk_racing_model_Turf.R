@@ -108,8 +108,8 @@ model_vars = c(
   'kerdos_rating',
   'rating_rank',
   'bsp_prob_run1_fluc',
-  #'fave_price',
-  #'bsp_prob_1',
+  'fave_price',
+  'bsp_prob',
   'bsp_rank',
   'field_size',
   'raceclass', 
@@ -156,7 +156,8 @@ test_date_end = '2026-12-31'
 # training sample w final filtering
 train_data <- model_data %>% 
   filter(meetingdate >= train_date_start,
-         meetingdate < test_date_start
+         meetingdate < test_date_start,
+         rating_rank %in% c(1:6)
   ) %>%
   select(raceid, meetingdate, all_of(model_vars), all_of(target_var)) # final select
 

@@ -148,6 +148,7 @@ gb_flat_all_cols <- gb_racing_sql %>%
          bsp_log=log(betfairwinsp + 1),
          # market implied prob
          bsp_prob=(1/betfairwinsp),
+         bsp_prob_1=bsp_prob^0.5,
          bsp_prob_1=sqrt(1/betfairwinsp),
          #bsp_logit = log(bsp_prob / (1 - bsp_prob)),
          #bsp_logit_damped = bsp_logit * 0.3,     # scale factor controls strength
@@ -264,7 +265,7 @@ pre_model_data <- gb_flat_all_cols %>%
          kerdos_rating_adj = pnorm(kerdos_rating) * 100, # 0-100 adj
          # add k-rating rank per race here (after any filtering) 
          #bsp_prob = bsp_prob/sum(bsp_prob),
-         rating_rank=rank(-kerdos_rating, ties.method="min")/numberofrunners,
+         rating_rank=rank(-kerdos_rating, ties.method="min"),
          bsp_rank=rank(betfairwinsp, ties.method="min")/numberofrunners
          
          ) %>% ungroup() %>%

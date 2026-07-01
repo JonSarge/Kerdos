@@ -1,24 +1,30 @@
-Kerdos Work Plan (ongoing)
+Kerdos Work Plan (v4)
 
-1. T & AW C1-4 models - class & code (age groups) important (see MS msg 23.06.26)
+1. T/AW C1-4 models - class & code (age groups) important (see MS msg 23.06.26)
+   - need to separate c1?
 
-2. Investigate the ratings anomalies excluded sample - create more recommendations
+2. Investigate the ratings anomalies excluded sample --> create more recommendations
 
 3. Price flucs
 
-4. Drill down more into Venue * Draw * Distance
+4. a. Drill down more into Venue * Draw * Distance
+      - Interactions function in ML recipe
+   
+   b. Investigate Pace further
 
 5. Jockey/Trainer ratings
+   - ref Mike
 
-
-
-Model Notes
-
-1. Check Mike's model-market discreps
-
-2. Run model through Claude again
-  - Smote function in recipe
-  - try a win-loss XGBoost model
-  - ask to review & improve the model accuracy, ignoring PnL 
+6. Run model through Claude again
+   - Smote function in recipe
+   - try a win-loss XGBoost model
+     - Ask Mike if any plans for Place Bets
+   - ask to review & improve the model accuracy, ignoring PnL 
   
-3. Generate/Save all rds files with same R version (4.5.1)
+7. Revisit C5-6 models with v4 updates
+  
+8. Lay betting
+
+
+
+

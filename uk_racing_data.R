@@ -149,7 +149,6 @@ gb_flat_all_cols <- gb_racing_sql %>%
          # market implied prob
          bsp_prob=(1/betfairwinsp),
          bsp_prob_1=bsp_prob^0.5,
-         bsp_prob_1=sqrt(1/betfairwinsp),
          #bsp_logit = log(bsp_prob / (1 - bsp_prob)),
          #bsp_logit_damped = bsp_logit * 0.3,     # scale factor controls strength
          #bsp_prob = plogis(bsp_logit_damped),

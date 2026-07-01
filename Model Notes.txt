@@ -1,27 +1,33 @@
 Kerdos Work Plan (v4)
 
 1. T/AW C1-4 models - class & code (age groups) important (see MS msg 23.06.26)
-   - need to separate c1?
+   - need to separate C1? Trainer & sire
+   - Trainer analysis - rating per racecode
+   - racecode needs revision - check in model
 
 2. Investigate the ratings anomalies excluded sample --> create more recommendations
+   - model = bf given price interval
+   - long time between runs
+   - Trainer change --> excl? Re-include run1_trainername
 
-3. Price flucs
+3. Price flucs --> Mike to provide update
+   - Fixed O'N, then morning
+   - Mike to msg re data layout etc
 
 4. a. Drill down more into Venue * Draw * Distance
       - Interactions function in ML recipe
    
    b. Investigate Pace further
 
-5. Jockey/Trainer ratings
-   - ref Mike
+5. Jockey/Trainer ratings --> ref Mike msg 1st July
 
-6. Run model through Claude again
-   - Smote function in recipe
-   - try a win-loss XGBoost model
-     - Ask Mike if any plans for Place Bets
-   - ask to review & improve the model accuracy, ignoring PnL 
+6. Model recipe trials
+   - Smote function
+   - try a win-loss XGBoost model --> ask Mike if any plans for Place Bets
+   - review & improve the model accuracy, ignoring PnL 
   
 7. Revisit C5-6 models with v4 updates
+   - Price flucs
   
 8. Lay betting
 

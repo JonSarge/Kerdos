@@ -89,7 +89,7 @@ cl <- makePSOCKcluster(parallel::detectCores() - 1)
 registerDoParallel(cl)
 
 manualUpload = 0
-loadNewData = 1
+loadNewData = 0
 
 if(manualUpload==1){
   # manually load data
@@ -139,6 +139,7 @@ model_data <- pre_model_data %>%
   filter(!raceid %in% rating_anomalies$raceid, # CHECK THESE TO ADD BACK IN!!!
          racesurfacename == 'Turf',
          raceclass %in% c(5:6),
+         #racecode %in% c('I', 'IA'),
          !is.na(pace_pred) # FIX THIS!!!
   ) 
 
@@ -183,7 +184,7 @@ loss_reduction = 0.01
 source('uk_racing_model_tune.R') # tuning script
 
 # get test pnl df (with winprob ranks)
-test_pnl_dat <- pnl_df(c(1:4))
+test_pnl_dat <- pnl_df(c(1:6))
 # pnl tables
 conf_levels = c(0, 0.04, 0.1)
 for(i in 1:length(conf_levels)){
@@ -198,6 +199,8 @@ pnl_table(test_pnl_dat, c( 'surface', 'bsp_index', 'bsp_bin' ), 0, 0.0, 0.1)
 pnl_table(test_pnl_dat, c( 'surface', 'bsp_index_all' ), 0, 0, 0.1)
 # winprob rank
 pnl_table(test_pnl_dat, c( 'surface', 'winprob_rank' ), 0, 0, 0.1)
+# racecode
+# pnl_table(test_pnl_dat, c( 'surface', 'racecode' ), 0, 0, 0.1)
 
 
 # Muhir movements

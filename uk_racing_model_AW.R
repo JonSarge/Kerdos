@@ -105,22 +105,20 @@ target_var = 'finish_group'
 # Predict finish position using tidymodels
 model_vars = c(
   'kerdos_rating',
-  'rating_rank',
+  #'rating_rank',
   'bsp_prob_run1_fluc',
-  #'bsp_run1_fluc',
-  'bsp_prob',
+  'fave_price',
+  #'bsp_prob',
+  'bsp_rank',
   'field_size',
   'raceclass', 
-  #'racecode',
   'draw_relative',
   'distance_m', 
   'weightcarried', 
-  #'weight_relative',
   'horseage',
   'daysoff',
-  'pace_pred',
+  'pace_pred'
   #'prizefund'
-  'goingabbrev'
   #'iphintsoverallpace'
   #'class_prior'
   #'toprated',
@@ -158,6 +156,7 @@ test_date_end = '2026-12-31'
 train_data <- model_data %>% 
   filter(meetingdate >= train_date_start,
          meetingdate < test_date_start,
+         #rating_rank %in% c(1:6)
   ) %>%
   select(raceid, meetingdate, all_of(model_vars), all_of(target_var)) # final select
 

@@ -56,7 +56,7 @@ if(!exists('gb_racing_sql')){
 }
 
 # load recent raw data from Mike and select relevant (stored) cols only
-gb_data_recent <- read.csv("FL Race.csv") %>% 
+gb_data_recent <- read.csv("gb_recent_data.csv") %>% 
   select(names(gb_racing_sql)) %>%
   mutate(raceid=ch(raceid),
          positionofficial=99)
@@ -266,7 +266,6 @@ pre_model_data <- gb_flat_all_cols %>%
          #bsp_prob = bsp_prob/sum(bsp_prob),
          rating_rank=rank(-kerdos_rating, ties.method="min"),
          bsp_rank=rank(betfairwinsp, ties.method="min")/numberofrunners
-         
          ) %>% ungroup() %>%
   relocate(kerdos_rating, kerdos_rating_adj, .after=pre_race_rating_adjusted) %>%
   select(!c(all_of(na_cols), all_of(zero_cols))) %>%

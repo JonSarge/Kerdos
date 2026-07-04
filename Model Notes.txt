@@ -1,3 +1,14 @@
+Tasks (4/7/26):
+
+- Compare tuned final_model to a model object in model-versions (how to import model obj's?)
+- For AW, check bsp_prob vs bsp_rank model winprices
+- For Turf, check bsp_prob model winprices with and without rating_rank filter
+- For AW & Turf, check winproces aren't reacting to slight bsp diffs 
+  - simulate bsp prices in races of interest from Mike
+- Update if both tests pass then close v3
+
+
+
 Kerdos Work Plan (v4)
 
 1. T/AW C1-4 models - class & code (age groups) important (see MS msg 23.06.26)

@@ -36,58 +36,11 @@ library(glmnet)
 library(RMariaDB)
 library(slider)
 
-ch=function(x){as.character(x)}
-fct=function(x){as.factor(x)}
-nm=function(x){as.numeric(x)}
-hms_times=function(x){format(as.POSIXct(x, origin="1970-01-01",tz="UTC"), '%H:%M')}
-# gerenerate test pnl df 
-pnl_df <- function(ranks){
-  dat <- bind_cols(test_data, 
-                   winprob=predictions$.pred_Win,
-                   winclass=predictions$.pred_class) %>%
-    group_by(raceid) %>%
-    mutate(
-      winprob_adj=winprob/sum(winprob),
-      winprob_rank=dense_rank(-winprob_adj),
-      win=ifelse(positionofficial==1, 1, 0),
-      win=ifelse(sum(win)==2 & win==1, 0.5, win) # dead-heat adj
-    ) %>% ungroup() %>%
-    mutate(bsp_bin=gsub('0-2.5', '1.01-2.5', bsp_bin),
-           bsp_index_all=1,
-           pick=ifelse(winprob_rank %in% ranks, 1, 0),
-           winprice=1/winprob_adj, # model price
-           ave_win_bsp=ifelse(win==1, betfairwinsp, NA),
-           profit=win*betfairwinsp-1,
-           bf_prob = 1/(betfairwinsp),
-           exp_value = (betfairwinsp - winprice)/winprice,
-           conf_level = winprob - bf_prob
-    ) %>% rename(surface=racesurfacename) 
-  return(dat)
-}
-# pnl summary table
-pnl_table <- function(dat, vars, val, conf, prob){
-  x <- dat %>%
-    filter(pick==1,
-           exp_value > val, 
-           conf_level > conf,
-           winprob_adj > prob,
-    ) %>%
-    group_by(across(all_of(vars))) %>% # bsp_index, bsp_bin
-    summarise(bets=sum(pick), 
-              sr=mean(win),  
-              ave_win_price=mean(na.omit(ave_win_bsp)),
-              profit=sum(profit), 
-              roi=sum(profit)/sum(pick)) 
-  return(x)
-  return(sum(x$profit)/sum(x$bets))
-}
-chart.rpart<-function(model, title){rpart.plot(model, digits=3, type=3, extra = 101, main=title)}
-
 # Set up parallel processing
 cl <- makePSOCKcluster(parallel::detectCores() - 1)
 registerDoParallel(cl)
 
-manualUpload = 1
+manualUpload = 0
 loadNewData = 0
 
 if(manualUpload==1){
@@ -156,7 +109,6 @@ test_date_end = '2026-12-31'
 train_data <- model_data %>% 
   filter(meetingdate >= train_date_start,
          meetingdate < test_date_start,
-         #rating_rank %in% c(1:6)
   ) %>%
   select(raceid, meetingdate, all_of(model_vars), all_of(target_var)) # final select
 
@@ -182,7 +134,10 @@ loss_reduction = 0.01
 source('uk_racing_model_tune.R') # tuning script
 
 # get test pnl df (with winprob ranks)
-test_pnl_dat <- pnl_df(c(1:6))
+test_pnl_dat <- pnl_df(c(1:6)) %>%
+  select(all_of(race_vars), all_of(model_vars), c(win:conf_level), -winclass) %>%
+  relocate(starts_with('betfairwin'), .before=winprob)
+
 # pnl tables
 conf_levels = c(0, 0.04, 0.1)
 for(i in 1:length(conf_levels)){

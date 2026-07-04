@@ -36,54 +36,6 @@ library(glmnet)
 library(RMariaDB)
 library(slider)
 
-ch=function(x){as.character(x)}
-fct=function(x){as.factor(x)}
-nm=function(x){as.numeric(x)}
-hms_times=function(x){format(as.POSIXct(x, origin="1970-01-01",tz="UTC"), '%H:%M')}
-options(dplyr.summarise.inform = FALSE)
-# gerenerate test pnl df 
-pnl_df <- function(ranks){
-  dat <- bind_cols(test_data, 
-                   winprob=predictions$.pred_Win,
-                   winclass=predictions$.pred_class) %>%
-    group_by(raceid) %>%
-    mutate(
-      winprob_adj=winprob/sum(winprob),
-      winprob_rank=dense_rank(-winprob_adj),
-      win=ifelse(positionofficial==1, 1, 0),
-      win=ifelse(sum(win)==2 & win==1, 0.5, win) # dead-heat adj
-    ) %>% ungroup() %>%
-    mutate(bsp_bin=gsub('0-2.5', '1.01-2.5', bsp_bin),
-           bsp_index_all=1,
-           pick=ifelse(winprob_rank %in% ranks, 1, 0),
-           winprice=1/winprob_adj, # model price
-           ave_win_bsp=ifelse(win==1, betfairwinsp, NA),
-           profit=win*betfairwinsp-1,
-           bf_prob = 1/(betfairwinsp),
-           exp_value = (betfairwinsp - winprice)/winprice,
-           conf_level = winprob - bf_prob
-    ) %>% rename(surface=racesurfacename) 
-  return(dat)
-}
-# pnl summary table
-pnl_table <- function(dat, vars, val, conf, prob){
-  x <- dat %>%
-    filter(pick==1,
-           exp_value > val, 
-           conf_level > conf,
-           winprob_adj > prob,
-           #bsp_index %in% c(1:5)
-    ) %>%
-    group_by(across(all_of(vars))) %>% # bsp_index, bsp_bin
-    summarise(bets=sum(pick), 
-              sr=mean(win),  
-              ave_win_price=mean(na.omit(ave_win_bsp)),
-              profit=sum(profit), 
-              roi=sum(profit)/sum(pick)) 
-  return(x)
-  return(sum(x$profit)/sum(x$bets))
-}
-
 # Set up parallel processing
 cl <- makePSOCKcluster(parallel::detectCores() - 1)
 registerDoParallel(cl)
@@ -184,7 +136,11 @@ loss_reduction = 0.01
 source('uk_racing_model_tune.R') # tuning script
 
 # get test pnl df (with winprob ranks)
-test_pnl_dat <- pnl_df(c(1:6))
+test_pnl_dat <- pnl_df(c(1:6)) %>%
+  select(all_of(race_vars), month, all_of(model_vars), c(win:conf_level), -winclass) %>%
+  relocate(starts_with('betfairwin'), .before=winprob) %>%
+  rename(surface=racesurfacename)
+
 # pnl tables
 conf_levels = c(0, 0.04, 0.1)
 for(i in 1:length(conf_levels)){
@@ -201,14 +157,6 @@ pnl_table(test_pnl_dat, c( 'surface', 'bsp_index_all' ), 0, 0, 0.1)
 pnl_table(test_pnl_dat, c( 'surface', 'winprob_rank' ), 0, 0, 0.1)
 # racecode
 # pnl_table(test_pnl_dat, c( 'surface', 'racecode' ), 0, 0, 0.1)
-
-
-# Muhir movements
-check_winprices <- test_pnl_dat %>% 
-  filter(raceid %in% c(1:6) & horsename == 'MUHIB') %>%
-  select(raceid, horsename, betfairwinsp, 
-         winprob, winprob_adj, winprice)
-
 
 
 

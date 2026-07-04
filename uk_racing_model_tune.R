@@ -7,6 +7,84 @@ library(bonsai)
 library(yardstick)
 library(vip)
 
+ch=function(x){as.character(x)}
+fct=function(x){as.factor(x)}
+nm=function(x){as.numeric(x)}
+hms_times=function(x){format(as.POSIXct(x, origin="1970-01-01",tz="UTC"), '%H:%M')}
+
+# gerenerate test pnl df 
+pnl_df <- function(ranks){
+  dat <- bind_cols(test_data, 
+                   winprob=predictions$.pred_Win,
+                   winclass=predictions$.pred_class,
+                   winprob_sim=predictions_sim$.pred_Win,
+                   betfairwinsp_sim=test_data_sim$betfairwinsp_sim) %>%
+    group_by(raceid) %>%
+    mutate(
+      winprob_adj=winprob/sum(winprob),
+      winprob_sim_adj=winprob_sim/sum(winprob_sim),
+      winprob_rank=dense_rank(-winprob_adj),
+      win=ifelse(positionofficial==1, 1, 0),
+      win=ifelse(sum(win)==2 & win==1, 0.5, win) # dead-heat adj
+    ) %>% ungroup() %>%
+    mutate(bsp_bin=gsub('0-2.5', '1.01-2.5', bsp_bin),
+           bsp_index_all=1,
+           pick=ifelse(winprob_rank %in% ranks, 1, 0),
+           winprice=1/winprob_adj, # model price
+           winprice_sim=1/winprob_sim_adj, # sim model price
+           ave_win_bsp=ifelse(win==1, betfairwinsp, NA),
+           profit=win*betfairwinsp-1,
+           bf_prob = 1/(betfairwinsp),
+           exp_value = (betfairwinsp - winprice)/winprice,
+           conf_level = winprob - bf_prob
+    ) %>% 
+    return(dat)
+}
+
+# pnl summary table
+pnl_table <- function(dat, vars, val, conf, prob){
+  x <- dat %>%
+    filter(pick==1,
+           exp_value > val, 
+           conf_level > conf,
+           winprob_adj > prob,
+    ) %>%
+    group_by(across(all_of(vars))) %>% # bsp_index, bsp_bin
+    summarise(bets=sum(pick), 
+              sr=mean(win),  
+              ave_win_price=mean(na.omit(ave_win_bsp)),
+              profit=sum(profit), 
+              roi=sum(profit)/sum(pick)) 
+  return(x)
+  return(sum(x$profit)/sum(x$bets))
+}
+chart.rpart<-function(model, title){rpart.plot(model, digits=3, type=3, extra = 101, main=title)}
+
+price_sim <- function(price_col){
+  test_data %>%
+    rename(price = !!sym(price_col)) %>%
+    group_by(raceid) %>%
+    mutate(
+      total_prob = sum(1 / price),                # original overround (race total)
+      is_fav = price == min(price),
+      fav_price = nm(price[is_fav][1]),
+      # jitter favourite by +/- 5 cents (one draw per race, applied only to the fav row)
+      new_fav_price = fav_price + runif(1, -0.1, 0.1),
+      new_fav_prob = 1 / new_fav_price,
+      # implied prob of all non-favourites, original
+      nonfav_prob_orig = sum((1 / price)[!is_fav]),
+      # probability "budget" left for non-favourites after fixing the fav
+      remaining_prob = total_prob - new_fav_prob,
+      # scale each non-favourite's implied prob proportionally so they sum to remaining_prob
+      scale_factor = remaining_prob / nonfav_prob_orig,
+      new_prob = if_else(is_fav, new_fav_prob, (1 / price) * scale_factor),
+      betfairwinsp_sim = 1 / new_prob
+    ) %>%
+    ungroup() %>%
+    select(betfairwinsp_sim)
+}
+
+
 ###############################################################################
 # INITIALIZATION
 ###############################################################################
@@ -60,6 +138,20 @@ test_data <- model_data %>%
   filter(meetingdate >= test_date_start,
          meetingdate < test_date_end
   )
+
+# sim test sample
+test_data_sim <- test_data %>% 
+  bind_cols(price_sim('betfairwinsp')) %>%
+  # recalculate bsp-linked features
+  group_by(raceid) %>%
+  mutate(bsp_prob = 1/betfairwinsp_sim,
+         bsp_rank = rank(betfairwinsp_sim, ties.method="min")/numberofrunners,
+         bsp_prob_run1_fluc = (bsp_prob - run1_bsp_prob)/run1_bsp_prob,
+         bsp_prob_run1_fluc = ifelse(is.na(bsp_prob_run1_fluc), 0, bsp_prob_run1_fluc)) %>%
+  ungroup()
+
+
+
 
 print(paste0('test_perc_split = ', round(nrow(test_data)/nrow(train_data)*100, 1),'%'))
 
@@ -174,6 +266,11 @@ predictions <- final_model %>%
   rowwise() %>%
   mutate(max_pred_prob = max(c_across(starts_with(".pred_") & where(is.numeric)))) %>%
   ungroup()
+
+# bsp sim predictions
+predictions_sim <- final_model %>%
+  predict(test_data_sim) %>%
+  bind_cols(final_model %>% predict(test_data_sim, type = "prob"))
 
 print('=== PERFORMANCE METRICS ===')
 print(predictions %>% metrics(truth = finish_group, estimate = .pred_class))

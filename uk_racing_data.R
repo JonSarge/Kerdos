@@ -106,7 +106,7 @@ gb_flat_all_cols <- gb_racing_sql %>%
            draw_relative <= 0.1 ~ 'Rail',
            draw_relative > 0.1 & draw_relative <= 0.33 ~ 'Inside',
            draw_relative > 0.33 & draw_relative <= 0.67 ~ 'Middle',
-           draw_relative > 0.67 & draw_relative <= 0.9 ~ 'Middle',
+           draw_relative > 0.67 & draw_relative <= 0.9 ~ 'Outside',
            TRUE ~ 'Wide'
          ),
          # fill raceclass NA's

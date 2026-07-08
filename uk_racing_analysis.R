@@ -102,10 +102,10 @@ perfrating_test <- perfrating_dat %>%
 
 
 #### jockey ratings analysis ####
-load('gb_pre_model_data.rda')
 
+jockey_ratings_csv <- read.csv('jockey_ratings.csv')
 
-jockey_ratings_dat <- read.csv('jockey_ratings.csv') %>%
+jockey_ratings_dat <- jockey_ratings_csv %>%
   mutate(
     Date = dmy(Period), # Tells R the year is at the end  
     period = case_when(
@@ -123,9 +123,7 @@ jockey_ratings_dat <- read.csv('jockey_ratings.csv') %>%
   rename(jockeyfullname=Jockey) %>%
   relocate(Period=period, .before=Rating)
         
-
-
-pre_model_data_1 <- pre_model_data %>%
+pre_model_jockey <- pre_model_data %>%
   mutate(Date=meetingdate,
          Period = case_when(
            Date >= "2023-07-01" & Date <= "2023-12-31" ~ 0,
@@ -134,11 +132,65 @@ pre_model_data_1 <- pre_model_data %>%
            Date >= "2025-01-01" & Date <= "2025-06-30" ~ 3,
            Date >= "2025-07-01" & Date <= "2025-12-31" ~ 4,
            Date >= "2026-01-01" & Date <= "2026-06-30" ~ 5,
+           Date >= "2025-01-01" & Date <= "2025-06-30" ~ 3,
+           Date >= "2025-07-01" & Date <= "2025-12-31" ~ 4,
+           Date >= "2026-01-01" & Date <= "2026-06-30" ~ 5,
            Date >= "2026-07-01" & Date <= "2026-12-31" ~ 6,
            TRUE ~ NA_real_
          )
   ) %>%
   left_join(., jockey_ratings_dat, by=c('jockeyfullname', 'Period'))
+
+missing_jockeys <-pre_model_jockey %>%
+  filter(is.na(Rating)) %>% 
+  select(jockeycode, jockeyfullname, Rating) %>%
+  unique()
+
+# trainer rarting data
+trainer_ratings_csv <- read.csv('trainer_ratings.csv')
+
+trainer_ratings_dat <- trainer_ratings_csv %>%
+  mutate(
+    Date = dmy(Period), # Tells R the year is at the end  
+    period = case_when(
+      Date >= "2023-07-01" & Date <= "2023-12-31" ~ 1,
+      Date >= "2024-01-01" & Date <= "2024-06-30" ~ 2,
+      Date >= "2024-07-01" & Date <= "2024-12-31" ~ 3,
+      Date >= "2025-01-01" & Date <= "2025-06-30" ~ 4,
+      Date >= "2025-07-01" & Date <= "2025-12-31" ~ 5,
+      Date >= "2026-01-01" & Date <= "2026-06-30" ~ 6,
+      Date >= "2026-07-01" & Date <= "2026-12-31" ~ 7,
+      TRUE ~ NA_real_
+    )
+  ) %>%
+  select(-c(Period, Rank, Date)) %>%
+  rename(trainerfullname=Trainer) %>%
+  relocate(Period=period, .before=Rating)
+
+pre_model_trainer <- pre_model_data %>%
+  mutate(Date=meetingdate,
+         Period = case_when(
+           Date >= "2023-07-01" & Date <= "2023-12-31" ~ 0,
+           Date >= "2024-01-01" & Date <= "2024-06-30" ~ 1,
+           Date >= "2024-07-01" & Date <= "2024-12-31" ~ 2,
+           Date >= "2025-01-01" & Date <= "2025-06-30" ~ 3,
+           Date >= "2025-07-01" & Date <= "2025-12-31" ~ 4,
+           Date >= "2026-01-01" & Date <= "2026-06-30" ~ 5,
+           Date >= "2025-01-01" & Date <= "2025-06-30" ~ 3,
+           Date >= "2025-07-01" & Date <= "2025-12-31" ~ 4,
+           Date >= "2026-01-01" & Date <= "2026-06-30" ~ 5,
+           Date >= "2026-07-01" & Date <= "2026-12-31" ~ 6,
+           TRUE ~ NA_real_
+         )
+  ) %>%
+  left_join(., trainer_ratings_dat, by=c('trainerfullname', 'Period'))
+
+missing_trainers <- pre_model_trainer %>%
+  filter(is.na(Rating)) %>% 
+  select(trainercode, trainerfullname, Rating) %>%
+  unique()
+
+
 
 # pull remaining NA's and model those with prizefund for current and prior run
 

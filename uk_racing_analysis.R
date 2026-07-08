@@ -100,7 +100,45 @@ perfrating_test <- perfrating_dat %>%
   select(-c(run1_performancerating, run1_raceclass)) %>%
   mutate(run1_raceclass_pred=predict(model, newdata = .))
 
-  
+
+#### jockey ratings analysis ####
+load('gb_pre_model_data.rda')
+
+
+jockey_ratings_dat <- read.csv('jockey_ratings.csv') %>%
+  mutate(
+    Date = dmy(Period), # Tells R the year is at the end  
+    period = case_when(
+      Date >= "2023-07-01" & Date <= "2023-12-31" ~ 1,
+      Date >= "2024-01-01" & Date <= "2024-06-30" ~ 2,
+      Date >= "2024-07-01" & Date <= "2024-12-31" ~ 3,
+      Date >= "2025-01-01" & Date <= "2025-06-30" ~ 4,
+      Date >= "2025-07-01" & Date <= "2025-12-31" ~ 5,
+      Date >= "2026-01-01" & Date <= "2026-06-30" ~ 6,
+      Date >= "2026-07-01" & Date <= "2026-12-31" ~ 7,
+      TRUE ~ NA_real_
+    )
+  ) %>%
+  select(-c(Period, Rank, Date)) %>%
+  rename(jockeyfullname=Jockey) %>%
+  relocate(Period=period, .before=Rating)
+        
+
+
+pre_model_data_1 <- pre_model_data %>%
+  mutate(Date=meetingdate,
+         Period = case_when(
+           Date >= "2023-07-01" & Date <= "2023-12-31" ~ 0,
+           Date >= "2024-01-01" & Date <= "2024-06-30" ~ 1,
+           Date >= "2024-07-01" & Date <= "2024-12-31" ~ 2,
+           Date >= "2025-01-01" & Date <= "2025-06-30" ~ 3,
+           Date >= "2025-07-01" & Date <= "2025-12-31" ~ 4,
+           Date >= "2026-01-01" & Date <= "2026-06-30" ~ 5,
+           Date >= "2026-07-01" & Date <= "2026-12-31" ~ 6,
+           TRUE ~ NA_real_
+         )
+  ) %>%
+  left_join(., jockey_ratings_dat, by=c('jockeyfullname', 'Period'))
 
 # pull remaining NA's and model those with prizefund for current and prior run
 

@@ -1,8 +1,8 @@
 #################################################
-# KERDOS
+# KERDOS V4
 # UK Horse Racing Model
 #
-# commenced: 03.06.2025; updated: 21.05.2026
+# commenced: 08.07.2026; updated: 08.07.2026
 #
 # Actions:
 #  - data processing
@@ -15,10 +15,11 @@
 # To Do:
 #  - jockey/trainer ratings
 #  - daily price fllucs
+#  - Binary win-loss model
 #
 # Ask Mike:
-#  - what markets (place betting?)
-#  - opening fixed prices?
+#  - 
+#  - 
 #
 #################################################
 
@@ -59,11 +60,15 @@ target_var = 'finish_group'
 model_vars = c(
   'kerdos_rating',
   'rating_rank',
-  'bsp_prob_run1_fluc',
-  'fave_price',
+  'bsp_run1_fluc',
+  #'fave_price',
   'bsp_prob',
   'bsp_rank',
   'field_size',
+  'raceclass', 
+  'draw_relative',
+  'distance_m', 
+  'weightcarried', # weight_relative
   'raceclass', 
   'draw_relative',
   'distance_m', 
@@ -110,7 +115,7 @@ test_date_end = '2026-12-31'
 train_data <- model_data %>% 
   filter(meetingdate >= train_date_start,
          meetingdate < test_date_start,
-         rating_rank %in% c(1:6)
+         #rating_rank %in% c(1:6)
   ) %>%
   select(raceid, meetingdate, all_of(model_vars), all_of(target_var)) # final select
 
@@ -136,7 +141,7 @@ loss_reduction = 0.01
 source('uk_racing_model_tune.R') # tuning script
 
 # get test pnl df (with winprob ranks)
-test_pnl_dat <- pnl_df(c(1:6)) %>%
+test_pnl_dat <- pnl_df(c(1:4)) %>%
   select(all_of(race_vars), month, all_of(model_vars), c(win:conf_level), -winclass) %>%
   relocate(starts_with('betfairwin'), .before=winprob) %>%
   rename(surface=racesurfacename)

@@ -53,16 +53,17 @@ if(manualUpload==1){
   source('uk_racing_data.R')
 }
 
-# target var
-target_var = 'finish_group'
+# model type: 'multinomial' (Win/Place/Unplaced/Out_of_Money) or 'binary' (Win/Not_Win)
+modelType  = 'binary'
+target_var = ifelse(modelType == 'binary', 'finish_group_binary', 'finish_group')
 
 # Predict finish position using tidymodels
 model_vars = c(
   'kerdos_rating',
   'rating_rank',
   'bsp_run1_fluc',
-  #'fave_price',
-  'bsp_prob',
+  'fave_price',
+  #'bsp_prob',
   'bsp_rank',
   'field_size',
   'raceclass', 
@@ -115,7 +116,7 @@ test_date_end = '2026-12-31'
 train_data <- model_data %>% 
   filter(meetingdate >= train_date_start,
          meetingdate < test_date_start,
-         #rating_rank %in% c(1:6)
+         rating_rank %in% c(1:6)
   ) %>%
   select(raceid, meetingdate, all_of(model_vars), all_of(target_var)) # final select
 

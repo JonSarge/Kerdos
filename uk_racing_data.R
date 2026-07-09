@@ -56,10 +56,10 @@ if(!exists('gb_racing_sql')){
 }
 
 # load recent raw data from Mike and select relevant (stored) cols only
-gb_data_recent <- read.csv("gb_recent_data.csv") %>% 
-  select(names(gb_racing_sql)) %>%
-  mutate(raceid=ch(raceid),
-         positionofficial=99)
+# gb_data_recent <- read.csv("gb_recent_data.csv") %>% 
+#   select(names(gb_racing_sql)) %>%
+#   mutate(raceid=ch(raceid),
+#          positionofficial=99)
 
 
 #### FEATURE ENGINEERING #####
@@ -68,6 +68,10 @@ gb_data_recent <- read.csv("gb_recent_data.csv") %>%
 
 # price intervals
 bsp_int=c(seq(0, 10, 2.5), 15, 25, 50, 1001)
+
+# jockey/trainer ratings data
+jockey_ratings <- read.csv('jockey_ratings.csv')
+trainer_ratings <- read.csv('trainer_ratings.csv')
 
 # get GB Flat Races - bind all years here!
 gb_flat_all_cols <- gb_racing_sql %>%
@@ -85,7 +89,18 @@ gb_flat_all_cols <- gb_racing_sql %>%
   mutate(meetingdate=as.Date(scheduledtimeofracegmt),
          year=year(meetingdate),
          month=month(meetingdate, label = TRUE, abbr = TRUE),
-         # target variable
+         # 6-monthly Period (for ratings)
+         Period = case_when(
+           meetingdate >= "2023-07-01" & meetingdate <= "2023-12-31" ~ 0,
+           meetingdate >= "2024-01-01" & meetingdate <= "2024-06-30" ~ 1,
+           meetingdate >= "2024-07-01" & meetingdate <= "2024-12-31" ~ 2,
+           meetingdate >= "2025-01-01" & meetingdate <= "2025-06-30" ~ 3,
+           meetingdate >= "2025-07-01" & meetingdate <= "2025-12-31" ~ 4,
+           meetingdate >= "2026-01-01" & meetingdate <= "2026-06-30" ~ 5,
+           meetingdate >= "2026-07-01" & meetingdate <= "2026-12-31" ~ 6,
+           TRUE ~ NA_real_
+         ),
+         # target variable (multinomial)
          finish_group = case_when(
            positionofficial == 1 ~ "Win",
            positionofficial %in% 2:3 ~ "Place",
@@ -93,6 +108,11 @@ gb_flat_all_cols <- gb_racing_sql %>%
            TRUE ~ "Out_of_Money"
          ),
          finish_group = factor(finish_group, levels = c("Win", "Place", "Unplaced", "Out_of_Money")),
+         # target variable (binary)
+         finish_group_binary = factor(
+           ifelse(positionofficial == 1, "Win", "Not_Win"),
+           levels = c("Win", "Not_Win")
+         ),
          field_size = case_when(
            numberofrunners < 6 ~ 'Small',
            between(numberofrunners, 6, 10) ~ 'Medium',
@@ -269,8 +289,32 @@ pre_model_data <- gb_flat_all_cols %>%
          ) %>% ungroup() %>%
   relocate(kerdos_rating, kerdos_rating_adj, .after=pre_race_rating_adjusted) %>%
   select(!c(all_of(na_cols), all_of(zero_cols))) %>%
+  # attach jockey/trainer ratings
+  left_join(., jockey_ratings %>% select(jockeyfullname=Jockey, Period, Rating=RATING), 
+            by=c('jockeyfullname', 'Period')) %>%
+  left_join(., trainer_ratings %>% select(trainerfullname=Trainer, Period, Rating=OVERALL), 
+            by=c('trainerfullname', 'Period'), suffix=c('_Jockey', '_Trainer')) %>%
   arrange(scheduledtimeofracegmt, saddlecloth)
   
+# check jockey/trainer NA's
+jockey_trainer_dat <- pre_model_data %>%
+  select(raceid, meetingdate, period=Period,
+         coursename, racenumber, raceclass, racecode, numberofrunners, jockeyfullname, 
+         trainerfullname, starts_with('Rating_'), -rating_rank)
+
+jockey_nas <- jockey_trainer_dat %>%
+  filter(period==5) %>%
+  group_by(raceid, coursename, raceclass, racecode, numberofrunners) %>%
+  summarise(across(Rating_Jockey, ~sum(is.na(.x))),.groups = "drop_last") %>%
+  filter(numberofrunners==Rating_Jockey) %>%
+  rename(jockey_rating_nas=Rating_Jockey)
+
+trainer_nas <- jockey_trainer_dat %>%
+  filter(period==5) %>%
+  group_by(raceid, coursename, raceclass, racecode, numberofrunners) %>%
+  summarise(across(Rating_Trainer, ~sum(is.na(.x))),.groups = "drop_last") %>%
+  rename(trainer_rating_nas=Rating_Trainer)
+
 
 # check any k-rating na's
 k_rating_nas <- pre_model_data %>% filter(is.na(pre_race_rating_adjusted))

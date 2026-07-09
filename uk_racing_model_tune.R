@@ -37,8 +37,8 @@ pnl_df <- function(ranks){
            bf_prob = 1/(betfairwinsp),
            exp_value = (betfairwinsp - winprice)/winprice,
            conf_level = winprob - bf_prob
-    ) %>% 
-    return(dat)
+    )
+  return(dat)
 }
 
 # pnl summary table
@@ -56,7 +56,6 @@ pnl_table <- function(dat, vars, val, conf, prob){
               profit=sum(profit), 
               roi=sum(profit)/sum(pick)) 
   return(x)
-  return(sum(x$profit)/sum(x$bets))
 }
 chart.rpart<-function(model, title){rpart.plot(model, digits=3, type=3, extra = 101, main=title)}
 
@@ -180,13 +179,20 @@ if(tuneModels == 1) {
   
   print(paste('Grid size:', nrow(tree_grid), 'combinations'))
   
+  # Build workflow before tuning so recipe is applied inside each CV fold
+  workflow_ml <- workflow() %>%
+    add_recipe(
+      recipe_ml,
+      blueprint = hardhat::default_recipe_blueprint(allow_novel_levels = TRUE)
+    ) %>%
+    add_model(tune_spec)
+  
   tune_results <- tune_grid(
-    tune_spec,
-    model_formula,
+    workflow_ml,
     resamples = folds_ml,
     grid      = tree_grid,
     metrics   = tune_metrics,
-    control   = control_grid(verbose = TRUE, save_pred = TRUE, allow_par = FALSE)
+    control   = control_grid(verbose = TRUE, save_pred = TRUE, allow_par = TRUE)
   )
   
   final_params <- tune_results %>% select_best(metric = best_metric)
@@ -209,13 +215,19 @@ if(tuneModels == 1) {
     set_mode('classification') %>%
     set_engine(tree_model, verbose = 1)
   
-
+  # Build workflow before resampling so recipe is applied inside each CV fold
+  workflow_ml <- workflow() %>%
+    add_recipe(
+      recipe_ml,
+      blueprint = hardhat::default_recipe_blueprint(allow_novel_levels = TRUE)
+    ) %>%
+    add_model(tune_spec)
+  
   tune_results <- fit_resamples(
-    tune_spec,
-    model_formula,
+    workflow_ml,
     resamples = folds_ml,
     metrics   = tune_metrics,
-    control   = control_resamples(verbose = TRUE, save_pred = TRUE, allow_par = FALSE)
+    control   = control_resamples(verbose = TRUE, save_pred = TRUE, allow_par = TRUE)
   )
   
   final_params <- tibble(
@@ -236,13 +248,7 @@ print(collect_metrics(tune_results))
 # FIT FINAL MODEL
 ###############################################################################
 
-workflow_ml <- workflow() %>%
-  add_recipe(
-    recipe_ml,
-    blueprint = hardhat::default_recipe_blueprint(allow_novel_levels = TRUE)
-  ) %>%
-  add_model(tune_spec) %>%
-  finalize_workflow(final_params)
+workflow_ml <- workflow_ml %>% finalize_workflow(final_params)
 
 print('Fitting final model...')
 final_model <- workflow_ml %>% fit(data = train_data)
@@ -262,7 +268,7 @@ print('Generating predictions...')
 predictions <- final_model %>%
   predict(test_data) %>%
   bind_cols(final_model %>% predict(test_data, type = "prob")) %>%
-  bind_cols(test_data %>% select(finish_group)) %>%
+  bind_cols(test_data %>% select(all_of(target_var))) %>%
   rowwise() %>%
   mutate(max_pred_prob = max(c_across(starts_with(".pred_") & where(is.numeric)))) %>%
   ungroup()
@@ -273,32 +279,32 @@ predictions_sim <- final_model %>%
   bind_cols(final_model %>% predict(test_data_sim, type = "prob"))
 
 print('=== PERFORMANCE METRICS ===')
-print(predictions %>% metrics(truth = finish_group, estimate = .pred_class))
+print(predictions %>% metrics(truth = !!sym(target_var), estimate = .pred_class))
 
 print('=== CONFUSION MATRIX ===')
-print(predictions %>% conf_mat(truth = finish_group, estimate = .pred_class))
+print(predictions %>% conf_mat(truth = !!sym(target_var), estimate = .pred_class))
 
 print('=== PER-CLASS ACCURACY ===')
 predictions %>%
-  group_by(finish_group) %>%
+  group_by(.data[[target_var]]) %>%
   summarise(
-    n        = n(),
-    accuracy = mean(.pred_class == finish_group),
+    n         = n(),
+    accuracy  = mean(.pred_class == .data[[target_var]]),
     mean_prob = mean(max_pred_prob)
   ) %>%
   arrange(desc(accuracy)) %>%
   print()
 
 print('=== ROC AUC ===')
-prob_cols <- paste0(".pred_", levels(predictions$finish_group))
+prob_cols    <- paste0(".pred_", levels(predictions[[target_var]]))
 existing_cols <- prob_cols[prob_cols %in% names(predictions)]
 
 if(n_classes == 2) {
-  roc_val <- predictions %>% roc_auc(truth = finish_group, all_of(existing_cols))
+  roc_val <- predictions %>% roc_auc(truth = !!sym(target_var), all_of(existing_cols))
   print(paste("AUC:", round(roc_val$.estimate, 4)))
 } else {
   if(length(existing_cols) == n_classes) {
-    print(predictions %>% roc_auc(truth = finish_group, all_of(existing_cols)))
+    print(predictions %>% roc_auc(truth = !!sym(target_var), all_of(existing_cols)))
   } else {
     print("WARNING: Mismatch in probability columns, skipping ROC")
   }

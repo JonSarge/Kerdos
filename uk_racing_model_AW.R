@@ -52,13 +52,14 @@ load('rating_anomalies.rda')
 source('uk_racing_data.R')
 }
 
-# target var
-target_var = 'finish_group'
+# model type: 'multinomial' (Win/Place/Unplaced/Out_of_Money) or 'binary' (Win/Not_Win)
+modelType  = 'binary'
+target_var = ifelse(modelType == 'binary', 'finish_group_binary', 'finish_group')
 
 # Predict finish position using tidymodels
 model_vars = c(
   'kerdos_rating',
-  #'rating_rank',
+  'rating_rank',
   'bsp_prob_run1_fluc',
   'fave_price',
   #'bsp_prob',
@@ -135,8 +136,9 @@ source('uk_racing_model_tune.R') # tuning script
 
 # get test pnl df (with winprob ranks)
 test_pnl_dat <- pnl_df(c(1:6)) %>%
-  select(all_of(race_vars), all_of(model_vars), c(win:conf_level), -winclass) %>%
-  relocate(starts_with('betfairwin'), .before=winprob)
+  select(all_of(race_vars), all_of(model_vars), c(win:conf_level), -winclass, month) %>%
+  relocate(starts_with('betfairwin'), .before=winprob) %>%
+  rename(surface=racesurfacename)
 
 # pnl tables
 conf_levels = c(0, 0.04, 0.1)
@@ -156,7 +158,6 @@ pnl_table(test_pnl_dat, c( 'surface', 'winprob_rank' ), 0, 0, 0.1)
 
 # feature weighting
 xgb_weights <- extract_fit_engine(final_model) %>% vi
-
 
 # export results
 write.csv(test_pnl_dat, paste0('test_pnl_AW_', Sys.Date(), '.csv'), row.names = F, na='')

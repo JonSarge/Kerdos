@@ -107,7 +107,6 @@ jockey_ratings_csv <- read.csv('jockey_ratings.csv')
 
 jockey_ratings_dat <- jockey_ratings_csv %>%
   mutate(
-    Date = dmy(Period), # Tells R the year is at the end  
     period = case_when(
       Date >= "2023-07-01" & Date <= "2023-12-31" ~ 1,
       Date >= "2024-01-01" & Date <= "2024-06-30" ~ 2,
@@ -121,7 +120,7 @@ jockey_ratings_dat <- jockey_ratings_csv %>%
   ) %>%
   select(-c(Period, Rank, Date)) %>%
   rename(jockeyfullname=Jockey) %>%
-  relocate(Period=period, .before=Rating)
+  relocate(Period=period, .before=RATING)
         
 pre_model_jockey <- pre_model_data %>%
   mutate(Date=meetingdate,
@@ -143,7 +142,7 @@ pre_model_jockey <- pre_model_data %>%
 
 missing_jockeys <-pre_model_jockey %>%
   filter(is.na(Rating)) %>% 
-  select(jockeycode, jockeyfullname, Rating) %>%
+  select(jockeycode, jockeyfullname, RATING) %>%
   unique()
 
 # trainer rarting data
@@ -165,7 +164,7 @@ trainer_ratings_dat <- trainer_ratings_csv %>%
   ) %>%
   select(-c(Period, Rank, Date)) %>%
   rename(trainerfullname=Trainer) %>%
-  relocate(Period=period, .before=Rating)
+  relocate(Period=period, .before=RATING)
 
 pre_model_trainer <- pre_model_data %>%
   mutate(Date=meetingdate,

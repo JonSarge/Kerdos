@@ -59,19 +59,21 @@ target_var = ifelse(modelType == 'binary', 'finish_group_binary', 'finish_group'
 # Predict finish position using tidymodels
 model_vars = c(
   'kerdos_rating',
-  'rating_rank',
-  'bsp_prob_run1_fluc',
-  'fave_price',
+  'Rating_Jockey',
+  'Rating_Trainer',
+  # 'rating_rank',
+  #'bsp_prob_run1_fluc',
+  # 'fave_price',
   #'bsp_prob',
-  'bsp_rank',
-  'field_size',
-  'raceclass', 
-  'draw_relative',
-  'distance_m', 
-  'weightcarried', 
-  'horseage',
-  'daysoff',
-  'pace_pred'
+  # 'bsp_rank',
+   'field_size',
+   'raceclass', 
+   'draw_relative',
+   'distance_m', 
+   'weightcarried', 
+   'horseage',
+   'daysoff',
+   'pace_pred'
   #'prizefund'
   #'iphintsoverallpace'
   #'class_prior'
@@ -93,12 +95,17 @@ model_data <- pre_model_data %>%
          racesurfacename == 'All Weather',
          raceclass %in% c(5:6),
          !is.na(pace_pred) # FIX THIS!!!
-  ) 
+  ) %>%
+  group_by(raceid) %>%
+  #mutate(Rating_Jockey_min = min(Rating_Jockey))
+  mutate(across(c(Rating_Jockey, Rating_Trainer), ~ifelse(is.na(.), min(na.omit(.)), .))) %>%
+  ungroup() %>%
+  filter(!is.infinite(Rating_Jockey))
+
 
 # CHECK model data na's
 model_data_nas <- model_data %>% select(where(~ any(is.na(.)))) %>% filter(if_any(everything(), is.na))
   
-
 # model formula
 model_formula = as.formula(paste(target_var, '~', paste(model_vars, collapse = " + ")))
 # train/test dates

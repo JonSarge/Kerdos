@@ -61,11 +61,11 @@ target_var = ifelse(modelType == 'binary', 'finish_group_binary', 'finish_group'
 model_vars = c(
   'kerdos_rating',
   'rating_rank',
-  'bsp_run1_fluc',
+  'bsp_prob_run1_fluc',
   'fave_price',
-  #'bsp_prob',
+  'bsp_prob',
   'bsp_rank',
-  'field_size',
+  #'field_size',
   'raceclass', 
   'draw_relative',
   'distance_m', 
@@ -76,7 +76,9 @@ model_vars = c(
   'weightcarried', # weight_relative
   'horseage',
   'daysoff',
-  'pace_pred'
+  'pace_pred',
+  'Rating_Jockey',
+  'Rating_Trainer'
   #'prizefund'
   #'goingabbrev',
   #'iphintsoverallpace'
@@ -96,7 +98,7 @@ model_vars = c(
 model_data <- pre_model_data %>%  
   filter(!raceid %in% rating_anomalies$raceid, # CHECK THESE TO ADD BACK IN!!!
          racesurfacename == 'Turf',
-         raceclass %in% c(5:6),
+         raceclass %in% c(1:4),
          #racecode %in% c('I', 'IA'),
          !is.na(pace_pred) # FIX THIS!!!
   ) 

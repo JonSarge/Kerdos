@@ -1,0 +1,58 @@
+Tasks (4/7/26):
+
+- Compare tuned final_model to a model object in model-versions (how to import model obj's?)
+- For AW, check bsp_prob vs bsp_rank model winprices
+- For Turf, check bsp_prob model winprices with and without rating_rank filter
+- For AW & Turf, check winproces aren't reacting to slight bsp diffs 
+  - simulate bsp prices in races of interest from Mike
+- Update if both tests pass then close v3
+
+
+The case for binary win/loss:
+  The fundamental problem with the current setup is that the 4-class model is simultaneously learning to distinguish Win/Place/Unplaced/OOM, but you then discard all that and just use .pred_Win. The model's gradient updates during training are pulled in multiple directions, with most signal going toward correctly classifying the dominant Out_of_Money class. A binary model concentrates all learning capacity on the one boundary that actually matters.
+  XGBoost also has a native solution for binary imbalance: scale_pos_weight, set to the ratio of negatives to positives per race. For a 10-runner field with 1 winner, that's roughly 9. This is cleaner than SMOTE and computationally free.
+
+The case for keeping multiclass:
+  The placement positions (2nd, 3rd) do carry some real information — a horse that consistently finishes 2nd has a meaningfully different profile than one that runs last. In theory, the multiclass structure can capture this. In practice, for XGBoost with noisy real-world racing data, the gain is probably marginal.
+
+Practical recommendation:
+  Run both and compare on calibration (win rate vs predicted win prob) and PnL, not accuracy. For the binary model, the key changes would be:
+
+
+
+Kerdos Work Plan (v4)
+
+1. T/AW C1-4 models - class & code (age groups) important (see MS msg 23.06.26)
+   - need to separate C1? Trainer & sire
+   - Trainer analysis - rating per racecode
+   - racecode needs revision - check in model
+
+2. Investigate the ratings anomalies excluded sample --> create more recommendations
+   - model = bf given price interval
+   - long time between runs
+   - Trainer change --> excl? Re-include run1_trainername
+
+3. Price flucs --> Mike to provide update
+   - Fixed O'N, then morning
+   - Mike to msg re data layout etc
+
+4. a. Drill down more into Venue * Draw * Distance
+      - Interactions function in ML recipe
+   
+   b. Investigate Pace further
+
+5. Jockey/Trainer ratings --> ref Mike msg 1st July
+
+6. Model recipe trials
+   - Smote function
+   - try a win-loss XGBoost model --> ask Mike if any plans for Place Bets
+   - review & improve the model accuracy, ignoring PnL 
+  
+7. Revisit C5-6 models with v4 updates
+   - Price flucs
+  
+8. Lay betting
+
+
+
+

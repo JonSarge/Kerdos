@@ -54,7 +54,7 @@ if(manualUpload==1){
 }
 
 # model type: 'multinomial' (Win/Place/Unplaced/Out_of_Money) or 'binary' (Win/Not_Win)
-modelType  = 'binary'
+modelType  = 'binary' # binary
 target_var = ifelse(modelType == 'binary', 'finish_group_binary', 'finish_group')
 
 # Predict finish position using tidymodels
@@ -62,7 +62,7 @@ model_vars = c(
   'kerdos_rating',
   'rating_rank',
   'bsp_prob_run1_fluc',
-  'fave_price',
+  #'fave_price',
   'bsp_prob',
   'bsp_rank',
   #'field_size',
@@ -70,10 +70,8 @@ model_vars = c(
   'draw_relative',
   'distance_m', 
   'weightcarried', # weight_relative
-  'raceclass', 
+  #'raceclass', 
   'draw_relative',
-  'distance_m', 
-  'weightcarried', # weight_relative
   'horseage',
   'daysoff',
   'pace_pred',
@@ -98,9 +96,9 @@ model_vars = c(
 model_data <- pre_model_data %>%  
   filter(!raceid %in% rating_anomalies$raceid, # CHECK THESE TO ADD BACK IN!!!
          racesurfacename == 'Turf',
-         raceclass %in% c(1:4),
+         raceclass %in% c(1:1),
          #racecode %in% c('I', 'IA'),
-         !is.na(pace_pred) # FIX THIS!!!
+         #!is.na(pace_pred) # FIX THIS!!!
   ) 
 
 # CHECK model data na's
@@ -118,7 +116,7 @@ test_date_end = '2026-12-31'
 train_data <- model_data %>% 
   filter(meetingdate >= train_date_start,
          meetingdate < test_date_start,
-         rating_rank %in% c(1:6)
+         #rating_rank %in% c(1:6)
   ) %>%
   select(raceid, meetingdate, all_of(model_vars), all_of(target_var)) # final select
 

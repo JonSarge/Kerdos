@@ -190,6 +190,41 @@ missing_trainers <- pre_model_trainer %>%
   unique()
 
 
+#### pace analysis ####
+
+# raceclass NA fill
+pace_dat <- tbl(kon, "gb_racing_data") |>
+  select(raceid, scheduledtimeofracegmt, countrycode, coursename, racenumber, 
+         racetype, racesurfacename, distance, numberofrunners, draw,
+         raceclass, racecode, pacemapdata,
+         iphintsoverallpace,
+         positionofficial, betfairwinsp
+  ) %>%
+  filter(countrycode == 'GBR',
+         racetype == 'Flat') %>%
+  distinct() %>%
+  collect()
+
+pace_df <- pace_dat %>%
+  filter(!is.na(betfairwinsp)) %>%
+  mutate(across(c(raceclass, racecode, contains('pace')), ~as.factor(.))) %>%
+  mutate(pacemapdata = fct(str_extract(pacemapdata, '\\d+$')),
+         win = ifelse(positionofficial==1, 1, 0),
+         bsp = ifelse(betfairwinsp > 100, 100, betfairwinsp))
+
+pace_dat_summ <- pace_df %>%
+  filter(iphintsoverallpace != 'Insufficient Data',
+         betfairwinsp < 20
+         ) %>%
+  group_by(pacemapdata, iphintsoverallpace) %>%
+  summarise(runners = n(),
+            strike_rate = mean(win),
+            ave_price = mean(betfairwinsp)
+            ) %>%
+  ungroup() %>%
+  filter(runners >= 30)
+  
+
 
 # pull remaining NA's and model those with prizefund for current and prior run
 

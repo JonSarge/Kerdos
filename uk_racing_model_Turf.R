@@ -60,23 +60,22 @@ target_var = ifelse(modelType == 'binary', 'finish_group_binary', 'finish_group'
 # Predict finish position using tidymodels
 model_vars = c(
   'kerdos_rating',
-  'rating_rank',
-  'bsp_prob_run1_fluc',
-  #'fave_price',
-  'bsp_prob',
+  #'rating_rank',
+  #'bsp_prob_run1_fluc',
+  'fave_price',
+  #'bsp_prob',
   'bsp_rank',
   #'field_size',
-  'raceclass', 
+ # 'raceclass', 
   'draw_relative',
-  'distance_m', 
-  'weightcarried', # weight_relative
+  'distance_m',
+  #'weightcarried', # weight_relative
   #'raceclass', 
-  'draw_relative',
-  'horseage',
-  'daysoff',
-  'pace_pred',
-  'Rating_Jockey',
-  'Rating_Trainer'
+  #'horseage',
+  'daysoff'
+  #'pace_pred',
+  #'Rating_Jockey'
+  #'Rating_Trainer'
   #'prizefund'
   #'goingabbrev',
   #'iphintsoverallpace'
@@ -96,7 +95,7 @@ model_vars = c(
 model_data <- pre_model_data %>%  
   filter(!raceid %in% rating_anomalies$raceid, # CHECK THESE TO ADD BACK IN!!!
          racesurfacename == 'Turf',
-         raceclass %in% c(1:1),
+         raceclass %in% c(2:4),
          #racecode %in% c('I', 'IA'),
          #!is.na(pace_pred) # FIX THIS!!!
   ) 
@@ -142,7 +141,7 @@ loss_reduction = 0.01
 source('uk_racing_model_tune.R') # tuning script
 
 # get test pnl df (with winprob ranks)
-test_pnl_dat <- pnl_df(c(1:4)) %>%
+test_pnl_dat <- pnl_df(c(1)) %>%
   select(all_of(race_vars), month, all_of(model_vars), c(win:conf_level), -winclass) %>%
   relocate(starts_with('betfairwin'), .before=winprob) %>%
   rename(surface=racesurfacename)

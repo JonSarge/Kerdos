@@ -41,6 +41,13 @@ library(slider)
 cl <- makePSOCKcluster(parallel::detectCores() - 1)
 registerDoParallel(cl)
 
+# tuning
+tuneModels = 0
+randomGrid = 0
+randomGridSize = 10 
+PenMix = 0 # glmnet Penalty mixture: pure Ridge; 1=pure Lasso
+PenValue = 0.01
+
 manualUpload = 0
 loadNewData = 0
 
@@ -59,21 +66,21 @@ target_var = ifelse(modelType == 'binary', 'finish_group_binary', 'finish_group'
 
 # Predict finish position using tidymodels
 model_vars = c(
-  'kerdos_rating',
-  #'rating_rank',
+  #'kerdos_rating_z',
+  'kerdos_rating_rank',
   #'bsp_prob_run1_fluc',
-  'fave_price',
-  #'bsp_prob',
-  'bsp_rank',
+  #'fave_price',
+  'bsp_prob',
+  #'bsp_rank',
   #'field_size',
- # 'raceclass', 
+  #'racecode', 
   'draw_relative',
   'distance_m',
-  #'weightcarried', # weight_relative
-  #'raceclass', 
-  #'horseage',
+  'weightcarried', # weight_relative
+  'raceclass', 
+  'horseage',
   'daysoff'
-  #'pace_pred',
+  #'pace_pred'
   #'Rating_Jockey'
   #'Rating_Trainer'
   #'prizefund'
@@ -93,16 +100,24 @@ model_vars = c(
 
 # modelling df w. final filters    
 model_data <- pre_model_data %>%  
-  filter(!raceid %in% rating_anomalies$raceid, # CHECK THESE TO ADD BACK IN!!!
+  filter(!raceid %in% ratings_remove$raceid, # CHECK THESE TO ADD BACK IN!!!
          racesurfacename == 'Turf',
          raceclass %in% c(2:4),
-         #racecode %in% c('I', 'IA'),
+         racecode %in% c('I', 'IA'),
          #!is.na(pace_pred) # FIX THIS!!!
   ) 
 
+# check ratings correlate
+hist_data <- model_data %>% filter(!preraceadjustedrating %in% c(0,999))
+plot(hist_data$preraceadjustedrating, hist_data$kerdos_rating,
+     main='Kerdos-Timeform Relationship', xlab='Timeform', ylab="Kerdos")
 # CHECK model data na's
-model_data_nas <- model_data %>% select(where(~ any(is.na(.)))) %>% filter(if_any(everything(), is.na))
-  
+model_data_nas <- model_data %>% 
+  select(where(~ any(is.na(.)))) %>% 
+  filter(if_any(everything(), is.na)) 
+
+if(length(race_vars[race_vars %in% names(model_data_nas)])>0) "CHECK NAs IN RACE VARS!!!"
+if(length(model_vars[model_vars %in% names(model_data_nas)])>0) "CHECK NAs IN MODEL VARS!!!"
 
 # model formula
 model_formula = as.formula(paste(target_var, '~', paste(model_vars, collapse = " + ")))
@@ -115,9 +130,11 @@ test_date_end = '2026-12-31'
 train_data <- model_data %>% 
   filter(meetingdate >= train_date_start,
          meetingdate < test_date_start,
-         #rating_rank %in% c(1:6)
-  ) %>%
+         between(betfairwinsp, 1.1, 99)
+         ) %>%
   select(raceid, meetingdate, all_of(model_vars), all_of(target_var)) # final select
+
+train_data %>% filter(if_any(everything(), is.na))
 
 # check training data na's
 train_data_nas <- train_data %>% filter(if_any(everything(), is.na))
@@ -126,12 +143,6 @@ train_data_nas <- train_data %>% filter(if_any(everything(), is.na))
 #### tune xScore model ####
 TreeModel = c('lightgbm', 'xgboost', 'glmnet')
 t = 2 # 1=gbm; 2=xgb; 3=glmnet
-# tuning
-tuneModels = 0
-randomGrid = 0
-randomGridSize = 10 
-PenMix = 0 # glmnet Penalty mixture: pure Ridge; 1=pure Lasso
-PenValue = 0.01
 # Create tuning grid with specified values
 trees = 500 # specify n trees sequence
 min_n = 10 # specify minimum tree n sequenc
@@ -139,30 +150,22 @@ tree_depth = 3
 learn_rate = 0.1
 loss_reduction = 0.01
 source('uk_racing_model_tune.R') # tuning script
-
 # get test pnl df (with winprob ranks)
 test_pnl_dat <- pnl_df(c(1)) %>%
   select(all_of(race_vars), month, all_of(model_vars), c(win:conf_level), -winclass) %>%
   relocate(starts_with('betfairwin'), .before=winprob) %>%
   rename(surface=racesurfacename)
-
 # pnl tables
 conf_levels = c(0, 0.04, 0.1)
 for(i in 1:length(conf_levels)){
   mins = c(0, conf_levels[i], 0.1) # exp val; conf level; winprob min
   print(cbind(pnl_table(test_pnl_dat, c( 'surface', 'bsp_index_all' ), mins[1], mins[2], mins[3]), conf=conf_levels[i]))
 }
-# months
-pnl_table(test_pnl_dat, c( 'surface', 'month' ), 0, 0.0, 0.1) 
-# bsp bins
-pnl_table(test_pnl_dat, c( 'surface', 'bsp_index', 'bsp_bin' ), 0, 0.0, 0.1)
-# overall
-pnl_table(test_pnl_dat, c( 'surface', 'bsp_index_all' ), 0, 0, 0.1)
-# winprob rank
-pnl_table(test_pnl_dat, c( 'surface', 'winprob_rank' ), 0, 0, 0.1)
-# racecode
-# pnl_table(test_pnl_dat, c( 'surface', 'racecode' ), 0, 0, 0.1)
-
+pnl_table(test_pnl_dat, c( 'surface', 'month' ), 0, 0.0, 0.1) # months
+pnl_table(test_pnl_dat, c( 'surface', 'bsp_index', 'bsp_bin' ), 0, 0.0, 0.1) # bsp bins
+pnl_table(test_pnl_dat, c( 'surface', 'bsp_index_all' ), 0, 0, 0.1) # overall
+pnl_table(test_pnl_dat, c( 'surface', 'winprob_rank' ), 0, 0, 0.1) # winprob rank
+pnl_table(test_pnl_dat, c( 'surface', 'raceclass' ), 0, 0, 0.1) # winprob rank
 
 
 # export results

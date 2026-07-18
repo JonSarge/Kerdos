@@ -204,12 +204,12 @@ race_vars <- c('raceid', 'racenumber', 'meetingdate', 'scheduledtimeofracegmt', 
                'horsecode', 'horsename', 'positionofficial', 'numberofrunners', 'betfairwinsp', 
                'bsp_index', 'bsp_bin', 'raceclass', 'run1_raceclass', 'racecode', 'racesurfacename')
 
-# CHECK: uncorrelated kerdos & tf
+# remove these races below for clean data to estimate missing K from TF
 rating_anomalies <- gb_flat_all_cols %>%
   mutate(rating_diff_perc = (pre_race_rating_adjusted-preraceadjustedrating)/preraceadjustedrating) %>%
   filter(abs(rating_diff_perc) > 0.5 |
-          preraceadjustedrating %in% c(0, 999)) %>%
-  select(raceid, horsecode, rating_diff_perc, pre_race_rating_adjusted, preraceadjustedrating, 
+         preraceadjustedrating %in% c(0, 999)) %>%
+  select(rating_diff_perc, pre_race_rating_adjusted, preraceadjustedrating, 
          ends_with(c('post_race_rating_adjusted', 'performancerating')))
 
 # ratings data w/o anomalies
@@ -219,10 +219,10 @@ rating_dat <- gb_flat_all_cols %>%
          contains(c('rating','figure', 'trw', 'Rating'))) # , 'figure', 'trw', 'Rating' 
 
 # Kerdos v Timeform
-k_ratings <- rating_dat %>% select(all_of(race_vars), pre_race_rating_adjusted, contains('post_race'), pre_race_rating_raw, contains('postrace'), -ends_with('_symbol')) %>% unique()
+kerdos_ratings <- rating_dat %>% select(all_of(race_vars), pre_race_rating_adjusted, contains('post_race'), pre_race_rating_raw, contains('postrace'), -ends_with('_symbol')) %>% unique()
 tf_ratings <- rating_dat %>% select(all_of(race_vars), contains(c('adjustedrating', 'masterrating', 'performancerating', 'timefigure'))) %>% unique()
 # missing values model from this df
-both_ratings <- k_ratings %>%
+both_ratings <- kerdos_ratings %>%
   select(-starts_with('run')) %>%
   left_join(., tf_ratings %>% # attach tf ratings
             select(raceid, horsecode, preraceadjustedrating:performancerating, timefigure),
@@ -238,14 +238,11 @@ plot(both_ratings$preraceadjustedrating, both_ratings$pre_race_rating_adjusted,
      main='Kerdos-Timeform Relationship', xlab='Timeform', ylab="Kerdos")
 
 # NA prediction (linear regression) - estimate missing Kerdos ratings in model df
-k_na_model <- lm(pre_race_rating_adjusted ~ preraceadjustedrating, data=both_ratings)
-summary(k_na_model)
-# estimate missing tf from k
-tf_na_model <- lm(preraceadjustedrating ~ pre_race_rating_adjusted, data=both_ratings)
-summary(tf_na_model)
+kerdos_est_model <- lm(pre_race_rating_adjusted ~ preraceadjustedrating, data=both_ratings)
+summary(kerdos_est_model)
 
 # CHECK: ratings dist'na
-hist(k_ratings$pre_race_rating_adjusted, main='Kerdos Master Rating', xlab='Rating')
+hist(kerdos_ratings$pre_race_rating_adjusted, main='Kerdos Master Rating', xlab='Rating')
 hist(tf_ratings$preraceadjustedrating, main='Timeform Master Rating', xlab='Rating')
 
 
@@ -256,8 +253,7 @@ factor_vars = c('racenumber', 'draw', 'draw_bin', 'positionofficial', 'horsegend
                 'racesurfacename',  'racecode', 'going',  'iphintsoverallpace', 'pacemapdata', 'field_size',
                 'jockeycode', 'jockeyfullname', 'trainercode', 'trainerfullname', 'ratingstars', 'rating123', 'significantimprover', 'jockeyinform', 
                 'toprated', 'hottrainer', 'eligibilitysexlimit', 'preracemastersymbol', 'hotrace', 'pre_race_rating_symbol_for_16'
-) # 'pacemapsidealposition', 'pre_race_rating_symbol', 
-
+                )  
 
 # CHECK all NA/Zero columns
 na_zero_cols_df <- gb_flat_all_cols %>% select(raceid, scheduledtimeofracegmt, coursename, where(~all(.==0, na.rm=TRUE)))
@@ -266,28 +262,30 @@ print(na_cols)
 zero_cols <- na_zero_cols_df %>% summarise_all(~all(.==0)) %>% select_if(~.) %>% names()
 print(zero_cols)
 
-
 # generate pre-model df with ratings adj's
 pre_model_data <- gb_flat_all_cols %>%
   # barrier pos e.g. 1_3 = inside, 10+ = wide etc
   mutate(across(all_of(factor_vars), ~fct(.))) %>%
-  # ESTIMATE MISSUING K/TF RATINGS:
-  mutate(k_rating_pred = predict(k_na_model, .),
-         pre_race_rating_adjusted_y = round(ifelse(is.na(pre_race_rating_adjusted), k_rating_pred, pre_race_rating_adjusted)),
-         pre_race_rating_adjusted=ifelse(is.na(pre_race_rating_adjusted), pre_race_rating_adjusted_y, pre_race_rating_adjusted),
-         tf_rating_pred = predict(tf_na_model, .),
-         ) %>%
+  # ESTIMATE MISSING K/TF RATINGS:
+  mutate(kerdos_rating_pred = predict(kerdos_est_model, .), # predictions
+         # kerdos rating w/ estimates for NA's
+         kerdos_rating = case_when(
+           is.na(pre_race_rating_adjusted) & !preraceadjustedrating %in% c(0,999) ~ kerdos_rating_pred, # Kerdos NA's
+           pre_race_rating_adjusted < 20 & between(preraceadjustedrating, 40, 200) ~ kerdos_rating_pred,
+           TRUE ~ pre_race_rating_adjusted
+         )
+  ) %>%
   # Scale ratings per field (try normalising by raceclass @ venue???)
   group_by(raceid) %>%
-  mutate(pre_race_rating_diff = pre_race_rating_adjusted_y - mean(pre_race_rating_adjusted_y),
-         kerdos_rating = nm(scale(pre_race_rating_adjusted_y)), # z-value
-         kerdos_rating_adj = pnorm(kerdos_rating) * 100, # 0-100 adj
-         # add k-rating rank per race here (after any filtering) 
-         #bsp_prob = bsp_prob/sum(bsp_prob),
-         rating_rank=rank(-kerdos_rating, ties.method="min"),
+  mutate(# kerdos rating normalised
+         kerdos_rating_z = nm(scale(kerdos_rating)), # z-value
+         # scaled to 0-100
+         kerdos_rating_adj = pnorm(kerdos_rating_z) * 100, # 0-100 adj
+         # add k-rating rank per race here (after any race filtering) 
+         kerdos_rating_rank=rank(-kerdos_rating_z, ties.method="min"),
          bsp_rank=rank(betfairwinsp, ties.method="min")/numberofrunners
          ) %>% ungroup() %>%
-  relocate(kerdos_rating, kerdos_rating_adj, .after=pre_race_rating_adjusted) %>%
+  relocate(contains('kerdos_rating'), .after=pre_race_rating_adjusted) %>%
   select(!c(all_of(na_cols), all_of(zero_cols))) %>%
   # attach jockey/trainer ratings
   left_join(., jockey_ratings %>% select(jockeyfullname=Jockey, Period, Rating=RATING), 
@@ -295,12 +293,23 @@ pre_model_data <- gb_flat_all_cols %>%
   left_join(., trainer_ratings %>% select(trainerfullname=Trainer, Period, Rating=OVERALL), 
             by=c('trainerfullname', 'Period'), suffix=c('_Jockey', '_Trainer')) %>%
   arrange(scheduledtimeofracegmt, saddlecloth)
-  
+
+# rating anomalies to be removed
+ratings_remove <- pre_model_data %>% 
+  #mutate(rating_diff_perc = (kerdos_rating-preraceadjustedrating)/preraceadjustedrating) %>% 
+  filter(is.na(kerdos_rating)|
+         ((preraceadjustedrating %in% c(0,999) & !between(kerdos_rating, 30, 200)) &
+         !(kerdos_rating < 30 & between(preraceadjustedrating, 30, 200)))
+         ) %>%
+  select(all_of(race_vars), pre_race_rating_adjusted, kerdos_rating, preraceadjustedrating, 
+         ends_with(c('post_race_rating_adjusted', 'performancerating')))
+
+
 # check jockey/trainer NA's
 jockey_trainer_dat <- pre_model_data %>%
   select(raceid, meetingdate, period=Period,
          coursename, racenumber, raceclass, racecode, numberofrunners, jockeyfullname, 
-         trainerfullname, starts_with('Rating_'), -rating_rank)
+         trainerfullname, starts_with('Rating_'), -kerdos_rating_rank)
 
 jockey_nas <- jockey_trainer_dat %>%
   filter(period==5) %>%
@@ -317,7 +326,7 @@ trainer_nas <- jockey_trainer_dat %>%
 
 
 # check any k-rating na's
-k_rating_nas <- pre_model_data %>% filter(is.na(pre_race_rating_adjusted))
+kerdos_rating_nas <- pre_model_data %>% filter(is.na(pre_race_rating_adjusted))
 # raceclass na's
 raceclass_nas <- pre_model_data %>% filter(is.na(raceclass))
 # run1_raceclass na's
@@ -355,31 +364,31 @@ if(loadNewData == 1 & nrow(string_lengths)==0){
 
 dbDisconnect(kon)
 
-
-
-# numeric vars
-numeric_vars = c('distance', 'draw_relative', 'distancecumulative', 'distancebeaten', 'ispdecimal', 'betfairwinsp', 'betfairplacesp', 'weightcarried', 
-                 'daysoff', 'lastrunflat', 'horseage', 'eligibilityagemin', 'bharating', 'bsp_run1_fluc',
-                 'wfa', 'apprenticeclaim', 'weightcarried', 'weight_adjustment', 'ratinglimitupper', 'preraceepf', 'pre_race_rating_raw', 
-                 'postrace_rating_raw', 'pre_race_rating_adjusted', 'preraceadjustedrating', 'preracemasterrating', 'kerdos_rating',
-                 'performancerating', 'ratingsadjustment', 'adj_figure', 'timefigure', 'bharating', 'tissuepricedecimal', 'rating0to100', 'numberofrunners', # 'weight_relative', 
-                 'winsatcourse', 'winsatdistance', 'winsatcoursedistance', 'prizefund'
-)
-
-# prior run vars
-run1_vars = c('run1_raceid', 'run1_meetingdate', 'run1_coursename', 'run1_positionofficial', 'run1_raceclass', 'run1_racecode', 'run1_racetype',
-              'run1_ratinglimitupper', 'run1_prizefund', 'run1_racesurfacename', 'run1_betfairwinsp')
-
-# leave these out
-excl_vars <- c('scheduledtimeofracelocal',	'racetitle',	'distancetext',	'distanceyards',	'distancefurlongs',	
-               'courseextraid',	'eligibilityagemax',	'ratinglimitlower',	'resultsstatus', 'trw1',	'trw2',	'trw3',	'trw4',	'trw5',	
-               'tfwfa',	'positionstatus',	'ispfavtext',	'ownercode',	'ownerfullname', 'performancesymbol',	'tissuepricefractional',	
-               'statusdescription', 'statusid',	'betfairbackprice',	'crsdiswinfavtext',	'bfselectionid',	'sportsbookdecimalodds',	
-               'sportsbookfractionalodds', 'masterinplaysymbol',	'pre_race_rating_symbol',	'sirehistoricalrating',	
-               'sirehistoricalsymbol',	'sireratingdisplay', 'damname',	'damhistoricalrating',	'damhistoricalsymbol',	'damratingdisplay',	
-               'damsirename',	'damsirehistoricalrating', 'damsirehistoricalsymbol',	'damsireratingdisplay',	'foalingdate',	'sirecd',	
-               'pacemapsidealposition', 'ispfractional', 'postrace_rating_symbol', 'jockeyuplift', 'traineruplift', 'horsesforcoursepos', 
-               'horsesforcoursesneg', 'warninghorse', 'bsp_run1_fluc')
+# 
+# 
+# # numeric vars
+# numeric_vars = c('distance', 'draw_relative', 'distancecumulative', 'distancebeaten', 'ispdecimal', 'betfairwinsp', 'betfairplacesp', 'weightcarried', 
+#                  'daysoff', 'lastrunflat', 'horseage', 'eligibilityagemin', 'bharating', 'bsp_run1_fluc',
+#                  'wfa', 'apprenticeclaim', 'weightcarried', 'weight_adjustment', 'ratinglimitupper', 'preraceepf', 'pre_race_rating_raw', 
+#                  'postrace_rating_raw', 'pre_race_rating_adjusted', 'preraceadjustedrating', 'preracemasterrating', 'kerdos_rating',
+#                  'performancerating', 'ratingsadjustment', 'adj_figure', 'timefigure', 'bharating', 'tissuepricedecimal', 'rating0to100', 'numberofrunners', # 'weight_relative', 
+#                  'winsatcourse', 'winsatdistance', 'winsatcoursedistance', 'prizefund'
+# )
+# 
+# # prior run vars
+# run1_vars = c('run1_raceid', 'run1_meetingdate', 'run1_coursename', 'run1_positionofficial', 'run1_raceclass', 'run1_racecode', 'run1_racetype',
+#               'run1_ratinglimitupper', 'run1_prizefund', 'run1_racesurfacename', 'run1_betfairwinsp')
+# 
+# # leave these out
+# excl_vars <- c('scheduledtimeofracelocal',	'racetitle',	'distancetext',	'distanceyards',	'distancefurlongs',	
+#                'courseextraid',	'eligibilityagemax',	'ratinglimitlower',	'resultsstatus', 'trw1',	'trw2',	'trw3',	'trw4',	'trw5',	
+#                'tfwfa',	'positionstatus',	'ispfavtext',	'ownercode',	'ownerfullname', 'performancesymbol',	'tissuepricefractional',	
+#                'statusdescription', 'statusid',	'betfairbackprice',	'crsdiswinfavtext',	'bfselectionid',	'sportsbookdecimalodds',	
+#                'sportsbookfractionalodds', 'masterinplaysymbol',	'pre_race_rating_symbol',	'sirehistoricalrating',	
+#                'sirehistoricalsymbol',	'sireratingdisplay', 'damname',	'damhistoricalrating',	'damhistoricalsymbol',	'damratingdisplay',	
+#                'damsirename',	'damsirehistoricalrating', 'damsirehistoricalsymbol',	'damsireratingdisplay',	'foalingdate',	'sirecd',	
+#                'pacemapsidealposition', 'ispfractional', 'postrace_rating_symbol', 'jockeyuplift', 'traineruplift', 'horsesforcoursepos', 
+#                'horsesforcoursesneg', 'warninghorse', 'bsp_run1_fluc')
 
 # send season data back to repo
 # git_add("uk_racing_data.R")

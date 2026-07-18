@@ -31,6 +31,11 @@ Kerdos Work Plan (v4)
    - model = bf given price interval
    - long time between runs
    - Trainer change --> excl? Re-include run1_trainername
+   
+   Findings:
+   - 12k runners with TF=0/999 & kerdos rating fine --> reinsert
+   - 1k runners with near-zero kerdos & TF fine --> estimate k from TF then reinsert
+   
 
 3. Price flucs --> Mike to provide update
    - Fixed O'N, then morning
@@ -53,6 +58,10 @@ Kerdos Work Plan (v4)
   
 8. Lay betting
 
+9. runs_since_win
+   days_since_win
+   won_a_race
+   Bookmaker Odds & the new pre_race_k_estimate_MST - what I mentioned should help with C1
 
 
 

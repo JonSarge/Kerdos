@@ -51,22 +51,16 @@ PenValue = 0.01
 manualUpload = 0
 loadNewData = 0
 
-if(manualUpload==1){
-  # manually load data
-  load('gb_pre_model_data.rda')
-  load('rating_anomalies.rda')
-} else {
-  # generate from raw csv data
-  source('uk_racing_data.R')
-}
+#### import data  preprocess ####
+source('uk_racing_data.R')
 
-# model type: 'multinomial' (Win/Place/Unplaced/Out_of_Money) or 'binary' (Win/Not_Win)
-modelType  = 'binary' # binary
+
+modelType  = 'binary' # binary or 'multinomial' 
 target_var = ifelse(modelType == 'binary', 'finish_group_binary', 'finish_group')
 
 # Predict finish position using tidymodels
 model_vars = c(
-  #'kerdos_rating_z',
+  #'kerdos_rating',
   'kerdos_rating_rank',
   #'bsp_prob_run1_fluc',
   #'fave_price',
@@ -77,7 +71,7 @@ model_vars = c(
   'draw_relative',
   'distance_m',
   'weightcarried', # weight_relative
-  'raceclass', 
+  #'raceclass', 
   'horseage',
   'daysoff'
   #'pace_pred'
@@ -105,7 +99,7 @@ model_data <- pre_model_data %>%
          raceclass %in% c(2:4),
          racecode %in% c('I', 'IA'),
          #!is.na(pace_pred) # FIX THIS!!!
-  ) 
+  ) # %>% mutate(kerdos_rating_rank = as.factor(kerdos_rating_rank))
 
 # check ratings correlate
 hist_data <- model_data %>% filter(!preraceadjustedrating %in% c(0,999))
@@ -130,7 +124,7 @@ test_date_end = '2026-12-31'
 train_data <- model_data %>% 
   filter(meetingdate >= train_date_start,
          meetingdate < test_date_start,
-         between(betfairwinsp, 1.1, 99)
+         between(betfairwinsp, 1.3, 50)
          ) %>%
   select(raceid, meetingdate, all_of(model_vars), all_of(target_var)) # final select
 
@@ -140,9 +134,8 @@ train_data %>% filter(if_any(everything(), is.na))
 train_data_nas <- train_data %>% filter(if_any(everything(), is.na))
 
 
-#### tune xScore model ####
-TreeModel = c('lightgbm', 'xgboost', 'glmnet')
-t = 2 # 1=gbm; 2=xgb; 3=glmnet
+#### tune xgboost model ####
+
 # Create tuning grid with specified values
 trees = 500 # specify n trees sequence
 min_n = 10 # specify minimum tree n sequenc
@@ -150,7 +143,10 @@ tree_depth = 3
 learn_rate = 0.1
 loss_reduction = 0.01
 source('uk_racing_model_tune.R') # tuning script
-# get test pnl df (with winprob ranks)
+
+
+#### generate results  PnL ####
+
 test_pnl_dat <- pnl_df(c(1)) %>%
   select(all_of(race_vars), month, all_of(model_vars), c(win:conf_level), -winclass) %>%
   relocate(starts_with('betfairwin'), .before=winprob) %>%
@@ -171,33 +167,14 @@ pnl_table(test_pnl_dat, c( 'surface', 'raceclass' ), 0, 0, 0.1) # winprob rank
 # export results
 write.csv(test_pnl_dat, paste0('test_pnl_Turf_',  Sys.Date(), '.csv') , row.names=F, na='')
 
-# save rds file
-saveRDS(final_model, file = 'gb_turf_winprobs_2026-06-24.rds')
 
 
+#### final checks ####
 
-
-
-# send script to repo
-git_add("uk_racing_model.R")
-git_commit("Update data script")
-git_push()
-
-
-
-
-
-
-# check dead-heats
-dead_heats <- test_pnl_dat %>% 
-  count(raceid, positionofficial) %>% 
-  filter(positionofficial==1 & n > 1)
-          
 test_pnl_filtered <- test_pnl_dat %>%
   mutate(pick = ifelse(exp_value >= 0 &
                        conf_level >= 0.04 &
-                       winprob_adj >= 0.1, 
-                1, 0))
+                       winprob_adj >= 0.1, 1, 0))
 
 test_pnl_filtered %>% 
   group_by(pick) %>% 
@@ -212,58 +189,14 @@ bets_per_race = test_pnl_filtered %>%
 
 bets_per_race %>% group_by(bets) %>% summarise(freq=n()) %>% mutate(freq_perc=freq/sum(freq))
          
-# save current model before trialling new one
-save(final_model, file=paste0('gb_racing_model_', Sys.Date(), '.rds'))
-  
 # check winprob hist
 hist(test_pnl_dat$winprob_adj)
   
-# export results
-write.csv(test_pnl_dat, paste0('test_pnl_aw_', Sys.Date(), '.csv'), row.names = F, na='')
 
 
+#### save rds file ####
 
-#### rpart bet strategy ####
-rpart_dat <- test_pnl_dat %>% 
-  filter(pick==1,
-         pos_value == 1,
-         #exp_value >= 0.04,
-         bsp_index==3
-         )
+saveRDS(final_model, file = 'gb_turf_winprobs_2026-06-24.rds')
 
-racing_roi <- rpart(profit ~ exp_value, rpart_dat, minbucket=30)
-chart.rpart(racing_roi, paste0('GB Racing ROI (n=', nrow(rpart_dat), ')'))
-
-
-
-
- 
- 
- #### save xgb model for python ####
-
- saveRDS(final_model, file='gb_racing_winprobs_2026-03-02.rds')
- 
- # Extract the XGBoost engine from the workflow
- xgb_model <- final_model %>% extract_fit_engine()
- # Now save it
- xgb.save(xgb_model, "gb_racing_winprobs_2026-03-02.xgb")
- 
- # Get the preprocessed training data (before model fitting)
- preprocessed_train <- recipe_ml %>%
-   prep(training = train_data) %>%
-   bake(new_data = NULL) %>%
-   head(105)
- 
- write.csv(preprocessed_train, 'training_dat_pre_norm_2026-03-02.csv', row.names = F)
- 
- 
- # winprob dist's
- winprob_dist <- test_pnl_dat %>% 
-   group_by(raceid) %>%
-   summarise(n(), sum(winprob), sum(winprob_adj))
- 
- # bets-per-race
- bets_per_race <- test_pnl_dat %>% group_by(raceid) %>% summarise(sum(winprob))
- 
  
  

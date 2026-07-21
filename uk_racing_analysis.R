@@ -30,13 +30,29 @@ kon <- dbConnect(
   port     = 24081
 )
 
+race_vars <- c('raceid', 'racenumber', 'scheduledtimeofracegmt', 'coursename', 
+               'horsecode', 'horsename', 'positionofficial', 'numberofrunners', 'betfairwinsp', 
+                'raceclass', 'run1_raceclass', 'racecode', 'racesurfacename')
+
+race_vars_sql = paste(race_vars, collapse=',')
+
+#### flucs analysis ####
+race_data <- dbGetQuery(kon, paste0("select ", race_vars_sql, " from gb_racing_data where scheduledtimeofracegmt >= '2025-10-01' ") )
+
+flucs_data_csv <- kerdos_data %>% select(raceid, horsecode, starts_with(c('bsp_', 'sb_')), -bsp_run1_fluc)
+flucs_cols <- c("bsp_60", "bsp_10", "bsp_5", "sb_o", "sb_m", "sb_2")
+
+flucs_data <- model_data %>% 
+  filter(meetingdate >= '2025-10-01') %>%
+  select(all_of(race_vars)) %>%
+  left_join(., flucs_data_csv, by=c('raceid', 'horsecode')) %>%
+  filter(if_all(bsp_60:sb_2, is.na))
+
+
 # raceclass NA fill
 raceclass_dat <- tbl(kon, "gb_racing_data") |>
   select(raceid, scheduledtimeofracegmt, countrycode, coursename, racenumber, 
          racetype, racesurfacename, raceclass, racecode, prizefund, ratinglimitupper
-         # run1_raceid, run1_meetingdate, run1_coursename, run1_racesurfacename,
-         # run1_raceclass, run1_racecode, run1_racetype, run1_ratinglimitupper, 
-         # run1_prizefund
          ) %>%
   filter(countrycode == 'GBR',
          racetype == 'Flat') %>%

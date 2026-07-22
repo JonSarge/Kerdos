@@ -2,24 +2,17 @@
 # KERDOS V4
 # UK Horse Racing Model
 #
-# commenced: 08.07.2026; updated: 08.07.2026
+# commenced: 08.07.2026; updated: 22.07.2026
 #
 # Actions:
 #  - data processing
 #  - feature engineering
-#  - multinomial logistic regression & xgboost models
-#  - model accuracy comparison
+#  - xgboost models
 #  - PnL report (flat-stake) 
-#  - bet strategy
 #
 # To Do:
 #  - jockey/trainer ratings
 #  - daily price fllucs
-#  - Binary win-loss model
-#
-# Ask Mike:
-#  - 
-#  - 
 #
 #################################################
 
@@ -54,7 +47,7 @@ loadNewData = 0
 #### import data  preprocess ####
 source('uk_racing_data.R')
 
-
+# declare target var
 modelType  = 'binary' # binary or 'multinomial' 
 target_var = ifelse(modelType == 'binary', 'finish_group_binary', 'finish_group')
 
@@ -105,6 +98,7 @@ model_data <- pre_model_data %>%
 hist_data <- model_data %>% filter(!preraceadjustedrating %in% c(0,999))
 plot(hist_data$preraceadjustedrating, hist_data$kerdos_rating,
      main='Kerdos-Timeform Relationship', xlab='Timeform', ylab="Kerdos")
+
 # CHECK model data na's
 model_data_nas <- model_data %>% 
   select(where(~ any(is.na(.)))) %>% 
@@ -113,8 +107,10 @@ model_data_nas <- model_data %>%
 if(length(race_vars[race_vars %in% names(model_data_nas)])>0) "CHECK NAs IN RACE VARS!!!"
 if(length(model_vars[model_vars %in% names(model_data_nas)])>0) "CHECK NAs IN MODEL VARS!!!"
 
+
 # model formula
 model_formula = as.formula(paste(target_var, '~', paste(model_vars, collapse = " + ")))
+
 # train/test dates
 train_date_start = '2024-01-01'
 test_date_start = '2026-01-01'   # run from 1st June with training data up to 30th May
@@ -142,10 +138,8 @@ min_n = 10 # specify minimum tree n sequenc
 tree_depth = 3
 learn_rate = 0.1
 loss_reduction = 0.01
-
 setSeed=0
 source('uk_racing_model_tune.R') # tuning script
-
 
 #### generate results  PnL ####
 
@@ -165,6 +159,11 @@ pnl_table(test_pnl_dat, c( 'surface', 'bsp_index_all' ), 0, 0, 0.1) # overall
 pnl_table(test_pnl_dat, c( 'surface', 'winprob_rank' ), 0, 0, 0.1) # winprob rank
 pnl_table(test_pnl_dat, c( 'surface', 'raceclass' ), 0, 0, 0.1) # winprob rank
 
+# add flat market pnl
+
+# check model v market
+market_model_df <- test_pnl_dat %>% select(raceid, bsp_prob, winprob_adj, betfairwinsp, winprice)
+plot(market_model_df$betfairwinsp, market_model_df$winprice)
 
 # export results
 write.csv(test_pnl_dat, paste0('test_pnl_Turf_',  Sys.Date(), '.csv') , row.names=F, na='')

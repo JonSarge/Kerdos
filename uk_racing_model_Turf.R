@@ -60,10 +60,10 @@ target_var = ifelse(modelType == 'binary', 'finish_group_binary', 'finish_group'
 
 # Predict finish position using tidymodels
 model_vars = c(
-  #'kerdos_rating',
+  #'kerdos_rating_z',
   'kerdos_rating_rank',
-  #'bsp_prob_run1_fluc',
-  #'fave_price',
+  'bsp_prob_run1_fluc',
+  'fave_price',
   'bsp_prob',
   #'bsp_rank',
   #'field_size',
@@ -71,7 +71,7 @@ model_vars = c(
   'draw_relative',
   'distance_m',
   'weightcarried', # weight_relative
-  #'raceclass', 
+  'raceclass', 
   'horseage',
   'daysoff'
   #'pace_pred'
@@ -96,7 +96,7 @@ model_vars = c(
 model_data <- pre_model_data %>%  
   filter(!raceid %in% ratings_remove$raceid, # CHECK THESE TO ADD BACK IN!!!
          racesurfacename == 'Turf',
-         raceclass %in% c(2:4),
+         raceclass %in% c(2:6),
          racecode %in% c('I', 'IA'),
          #!is.na(pace_pred) # FIX THIS!!!
   ) # %>% mutate(kerdos_rating_rank = as.factor(kerdos_rating_rank))
@@ -124,7 +124,7 @@ test_date_end = '2026-12-31'
 train_data <- model_data %>% 
   filter(meetingdate >= train_date_start,
          meetingdate < test_date_start,
-         between(betfairwinsp, 1.3, 50)
+         between(betfairwinsp, 1.2, 50)
          ) %>%
   select(raceid, meetingdate, all_of(model_vars), all_of(target_var)) # final select
 
@@ -142,12 +142,14 @@ min_n = 10 # specify minimum tree n sequenc
 tree_depth = 3
 learn_rate = 0.1
 loss_reduction = 0.01
+
+setSeed=0
 source('uk_racing_model_tune.R') # tuning script
 
 
 #### generate results  PnL ####
 
-test_pnl_dat <- pnl_df(c(1)) %>%
+test_pnl_dat <- pnl_df(c(1:1)) %>%
   select(all_of(race_vars), month, all_of(model_vars), c(win:conf_level), -winclass) %>%
   relocate(starts_with('betfairwin'), .before=winprob) %>%
   rename(surface=racesurfacename)

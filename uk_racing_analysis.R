@@ -37,13 +37,32 @@ race_vars <- c('raceid', 'racenumber', 'scheduledtimeofracegmt', 'coursename',
 race_vars_sql = paste(race_vars, collapse=',')
 
 #### flucs analysis ####
-race_data <- dbGetQuery(kon, paste0("select ", race_vars_sql, " from gb_racing_data where scheduledtimeofracegmt >= '2025-10-01' ") )
+race_data <- dbGetQuery(kon, paste0("select ", race_vars_sql, " from gb_racing_data where scheduledtimeofracegmt >= '2025-10-01' and scheduledtimeofracegmt <= '2025-12-31' ") )
 
-flucs_data_csv <- kerdos_data %>% select(raceid, horsecode, starts_with(c('bsp_', 'sb_')), -bsp_run1_fluc)
+kerdos_data <- read.csv("C:/Users/jonsa/Downloads/performance_data_2025-10-01_to_2025-12-31_1784375959946.csv")
+
+setwd('C:/Users/jonsa/Downloads')
+files <- c(
+'performance_data_2024-01-01_to_2024-04-30.csv',
+'performance_data_2024-05-01_to_2024-06-30.csv',
+'performance_data_2024-07-01_to_2024-09-30.csv',
+'performance_data_2024-10-01_to_2024-12-31.csv',
+'performance_data_2025-01-01_to_2025-04-30.csv',
+'performance_data_2025-05-01_to_2025-06-30.csv',
+'performance_data_2025-07-01_to_2025-09-30.csv',
+'performance_data_2025-10-01_to_2025-12-31.csv'
+)
+pr <- files %>% map_dfr(read_csv)
+setwd('C:/Users/jonsa/OneDrive/STATS_ON/Projects/Mike_Spence/Kerdos')
+
+flucs_data_csv <- pr %>% select(raceid, scheduledtimeofracegmt, horsecode, starts_with(c('bsp_', 'sb_')), -bsp_run1_fluc)
 flucs_cols <- c("bsp_60", "bsp_10", "bsp_5", "sb_o", "sb_m", "sb_2")
 
+save(flucs_data_csv, file='kerdos_flucs_data.rda')
+
 flucs_data <- model_data %>% 
-  filter(meetingdate >= '2025-10-01') %>%
+  mutate(horsecode=ch(horsecode)) %>%
+  filter(meetingdate >= '2024-01-01' , meetingdate < '2025-12-31') %>%
   select(all_of(race_vars)) %>%
   left_join(., flucs_data_csv, by=c('raceid', 'horsecode')) %>%
   filter(if_all(bsp_60:sb_2, is.na))

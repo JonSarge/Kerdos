@@ -27,16 +27,13 @@ Kerdos Work Plan (v4)
    - Trainer analysis - rating per racecode
    - racecode needs revision - check in model
 
-2. Investigate the ratings anomalies excluded sample --> create more recommendations
-   - model = bf given price interval
-   - long time between runs
-   - Trainer change --> excl? Re-include run1_trainername
+2. Investigate the ratings anomalies excluded sample
+   - A few Kerdos = 20, TF = 100+ still
    
    Findings:
    - 12k runners with TF=0/999 & kerdos rating fine --> reinsert
    - 1k runners with near-zero kerdos & TF fine --> estimate k from TF then reinsert
    
-
 3. Price flucs --> Mike to provide update
    - Fixed O'N, then morning
    - Mike to msg re data layout etc
@@ -63,5 +60,9 @@ Kerdos Work Plan (v4)
    won_a_race
    Bookmaker Odds & the new pre_race_k_estimate_MST - what I mentioned should help with C1
 
+
+A reasonable next step, if you want to build back up deliberately rather than re-adding everything at once: 
+take this exact minimal-fix script, remove step_smote(...) from the recipe, add scale_pos_weight to set_engine() (computed from train_data[[target_var]] counts as before), and re-run just this one change in isolation. 
+That would let you confirm the 0.276 result again on a script you now trust line-by-line, without pulling back in the calibration/backtest/price-distribution work unless you decide you want it.
 
 

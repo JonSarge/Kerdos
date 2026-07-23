@@ -49,7 +49,7 @@ target_var = ifelse(modelType == 'binary', 'finish_group_binary', 'finish_group'
 model_vars = c(
   #'kerdos_rating_adj',
   'kerdos_rating_rank',
-  'bsp_prob_run1_fluc',
+  #'bsp_prob_run1_fluc',
   'fave_price',
   'bsp_prob',
   #'bsp_rank',
@@ -82,6 +82,7 @@ model_vars = c(
 # modelling df w. final filters    
 model_data <- pre_model_data %>%  
   filter(!raceid %in% ratings_remove$raceid, # CHECK THESE TO ADD BACK IN!!!
+         !(preraceadjustedrating>=70 & kerdos_rating<30), # fix this in racing data script
          racesurfacename == 'Turf',
          raceclass %in% c(2:6),
          #racecode %in% c('I', 'IA'),
@@ -142,12 +143,12 @@ source('uk_racing_model_tune.R') # tuning script
 
 #### generate results  PnL ####
 
-test_pnl_dat <- pnl_df(c(1:1)) %>%
+test_pnl_dat <- pnl_df(c(1:4)) %>%
   select(all_of(race_vars), month, all_of(model_vars), c(win:conf_level), -winclass) %>%
   relocate(starts_with('betfairwin'), .before=winprob) %>%
   rename(surface=racesurfacename)
 # pnl tables
-conf_levels = c(0, 0.04, 0.1)
+conf_levels = c(0, 0.025, 0.065)
 for(i in 1:length(conf_levels)){
   mins = c(0, conf_levels[i], 0.1) # exp val; conf level; winprob min
   print(cbind(pnl_table(test_pnl_dat, c( 'surface', 'bsp_index_all' ), mins[1], mins[2], mins[3]), conf=conf_levels[i]))
@@ -157,6 +158,7 @@ pnl_table(test_pnl_dat, c( 'surface', 'bsp_index', 'bsp_bin' ), 0, 0.0, 0.1) # b
 pnl_table(test_pnl_dat, c( 'surface', 'bsp_index_all' ), 0, 0, 0.1) # overall
 pnl_table(test_pnl_dat, c( 'surface', 'winprob_rank' ), 0, 0, 0.1) # winprob rank
 pnl_table(test_pnl_dat, c( 'surface', 'raceclass' ), 0, 0, 0.1) # winprob rank
+pnl_table(test_pnl_dat, c( 'surface', 'racecode' ), 0, 0, 0.1) # winprob rank
 
 # add flat market pnl
 

@@ -34,12 +34,6 @@ library(slider)
 cl <- makePSOCKcluster(parallel::detectCores() - 1)
 registerDoParallel(cl)
 
-# tuning
-tuneModels = 0
-randomGrid = 0
-randomGridSize = 10 
-PenMix = 0 # glmnet Penalty mixture: pure Ridge; 1=pure Lasso
-PenValue = 0.01
 
 manualUpload = 0
 loadNewData = 0
@@ -53,14 +47,14 @@ target_var = ifelse(modelType == 'binary', 'finish_group_binary', 'finish_group'
 
 # Predict finish position using tidymodels
 model_vars = c(
-  #'kerdos_rating_z',
+  #'kerdos_rating_adj',
   'kerdos_rating_rank',
   'bsp_prob_run1_fluc',
   'fave_price',
   'bsp_prob',
   #'bsp_rank',
   #'field_size',
-  #'racecode', 
+  'racecode', 
   'draw_relative',
   'distance_m',
   'weightcarried', # weight_relative
@@ -71,7 +65,7 @@ model_vars = c(
   #'Rating_Jockey'
   #'Rating_Trainer'
   #'prizefund'
-  #'goingabbrev',
+  #'goingabbrev'
   #'iphintsoverallpace'
   #'class_prior'
   #'toprated',
@@ -90,7 +84,7 @@ model_data <- pre_model_data %>%
   filter(!raceid %in% ratings_remove$raceid, # CHECK THESE TO ADD BACK IN!!!
          racesurfacename == 'Turf',
          raceclass %in% c(2:6),
-         racecode %in% c('I', 'IA'),
+         #racecode %in% c('I', 'IA'),
          #!is.na(pace_pred) # FIX THIS!!!
   ) # %>% mutate(kerdos_rating_rank = as.factor(kerdos_rating_rank))
 
@@ -131,6 +125,11 @@ train_data_nas <- train_data %>% filter(if_any(everything(), is.na))
 
 
 #### tune xgboost model ####
+
+# tuning
+tuneModels = 1
+randomGrid = 1
+randomGridSize = 10 
 
 # Create tuning grid with specified values
 trees = 500 # specify n trees sequence

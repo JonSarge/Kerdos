@@ -39,33 +39,202 @@ race_vars_sql = paste(race_vars, collapse=',')
 #### flucs analysis ####
 race_data <- dbGetQuery(kon, paste0("select ", race_vars_sql, " from gb_racing_data where scheduledtimeofracegmt >= '2025-10-01' and scheduledtimeofracegmt <= '2025-12-31' ") )
 
-kerdos_data <- read.csv("C:/Users/jonsa/Downloads/performance_data_2025-10-01_to_2025-12-31_1784375959946.csv")
+loadFlucs = 0
+if(loadFlucs==0){
+  setwd('C:/Users/jonsa/Downloads')
+  files <- c(
+  'performance_data_2024-01-01_to_2024-04-30.csv',
+  'performance_data_2024-05-01_to_2024-06-30.csv',
+  'performance_data_2024-07-01_to_2024-09-30.csv',
+  'performance_data_2024-10-01_to_2024-12-31.csv',
+  'performance_data_2025-01-01_to_2025-04-30.csv',
+  'performance_data_2025-05-01_to_2025-06-30.csv',
+  'performance_data_2025-07-01_to_2025-09-30.csv',
+  'performance_data_2025-10-01_to_2025-12-31.csv'
+  )
+  pr <- files %>% map_dfr(read_csv)
+  setwd('C:/Users/jonsa/OneDrive/STATS_ON/Projects/Mike_Spence/Kerdos')
+  
+  flucs_data_csv <- pr %>% select(raceid, scheduledtimeofracegmt, horsecode, starts_with(c('bsp_', 'sb_')), -bsp_run1_fluc)
+  flucs_cols <- c("bsp_60", "bsp_10", "bsp_5", "sb_o", "sb_m", "sb_2")
+  
+  save(flucs_data_csv, file='kerdos_flucs_data.rda')
+}
 
-setwd('C:/Users/jonsa/Downloads')
-files <- c(
-'performance_data_2024-01-01_to_2024-04-30.csv',
-'performance_data_2024-05-01_to_2024-06-30.csv',
-'performance_data_2024-07-01_to_2024-09-30.csv',
-'performance_data_2024-10-01_to_2024-12-31.csv',
-'performance_data_2025-01-01_to_2025-04-30.csv',
-'performance_data_2025-05-01_to_2025-06-30.csv',
-'performance_data_2025-07-01_to_2025-09-30.csv',
-'performance_data_2025-10-01_to_2025-12-31.csv'
-)
-pr <- files %>% map_dfr(read_csv)
-setwd('C:/Users/jonsa/OneDrive/STATS_ON/Projects/Mike_Spence/Kerdos')
+load('kerdos_flucs_data.rda')
 
-flucs_data_csv <- pr %>% select(raceid, scheduledtimeofracegmt, horsecode, starts_with(c('bsp_', 'sb_')), -bsp_run1_fluc)
-flucs_cols <- c("bsp_60", "bsp_10", "bsp_5", "sb_o", "sb_m", "sb_2")
-
-save(flucs_data_csv, file='kerdos_flucs_data.rda')
+flucs_data_csv <- flucs_data_csv %>% 
+  select(-c(scheduledtimeofracegmt)) %>%
+  mutate(horsecode=nm(horsecode))
 
 flucs_data <- model_data %>% 
-  mutate(horsecode=ch(horsecode)) %>%
   filter(meetingdate >= '2024-01-01' , meetingdate < '2025-12-31') %>%
   select(all_of(race_vars)) %>%
   left_join(., flucs_data_csv, by=c('raceid', 'horsecode')) %>%
-  filter(if_all(bsp_60:sb_2, is.na))
+  mutate(win=ifelse(positionofficial == 1, 1, 0)) %>%
+  select(raceid, meetingdate, racesurfacename, raceclass, racecode, 
+         horsename, win, bsp_60, bsp_10, bsp_5, bsp_0=betfairwinsp)
+  # for NA's
+  #filter(if_all(bsp_60:sb_2, is.na))
+
+###############################################################################
+# Price Fluctuation Model
+# Hypothesis: if a horse's price shortens from bsp_60 (60 min before off) to
+# bsp_0 (at the off), the likelihood of winning increases.
+###############################################################################
+
+library(tidyverse)
+library(yardstick)
+library(broom)
+
+###############################################################################
+# 0. LOAD DATA -- adjust this to however your data actually gets in
+###############################################################################
+# Assumes a data frame `flucs_df` with (at minimum): raceid, meetingdate, win,
+# bsp_60, bsp_10, bsp_5, bsp_0. `win` is 0/1.
+
+# flucs_df <- read_csv("your_file.csv")   # or however you're loading it
+
+###############################################################################
+# 1. FEATURE ENGINEERING: price movement / "steam"
+###############################################################################
+# Two natural ways to express "shortening":
+#   - ratio:    bsp_60 / bsp_0   > 1 means the price shortened (odds fell)
+#   - pct move: (bsp_60 - bsp_0) / bsp_60   positive means shortened
+# pct move is easier to interpret directly ("shortened by X%"), so that's the
+# primary feature below, computed at a few different horizons since a late
+# steam move (bsp_5 -> bsp_0) might carry different information than an early
+# drift (bsp_60 -> bsp_10).
+
+flucs_df <- flucs_data %>%
+  mutate(
+    # overall move, 60 min out to the off
+    pct_move_60_0 = (bsp_60 - bsp_0) / bsp_60,
+    ratio_60_0    = bsp_60 / bsp_0,
+    
+    # split into two halves of the window, in case early vs late movement
+    # carries different signal
+    pct_move_60_10 = (bsp_60 - bsp_10) / bsp_60,
+    pct_move_10_0  = (bsp_10 - bsp_0)  / bsp_10,
+    
+    # final implied probability, used as a control -- a short-priced horse
+    # shortening slightly is different from a long shot shortening a lot, and
+    # we want to know if movement predicts winning OVER AND ABOVE the final
+    # price itself, not just re-discover "shorter price = more likely to win"
+    bsp_0_prob = 1 / bsp_0
+  ) %>%
+  
+  filter(bsp_0 <= 50, 
+         #bsp_0 >= 2,
+         racesurfacename == 'Turf',
+         raceclass %in% c(1, 2, 3))
+
+# quick sanity check: any non-positive or missing prices will break log-odds /
+# ratios below -- inspect before modelling
+flucs_df %>%
+  summarise(
+    n                = n(),
+    n_missing_bsp60  = sum(is.na(bsp_60)),
+    n_missing_bsp0   = sum(is.na(bsp_0)),
+    n_nonpositive    = sum(bsp_60 <= 0 | bsp_0 <= 0, na.rm = TRUE)
+  ) %>%
+  print()
+
+flucs_df <- flucs_df %>% filter(!is.na(pct_move_60_0), is.finite(pct_move_60_0))
+
+###############################################################################
+# 2-4. ANALYSIS FUNCTION -- decile check, models, AIC/AUC comparison
+###############################################################################
+# Wrapped in a function so it can be run once overall and once per surface
+# (Turf vs All Weather), to check whether pooling the two masks a real effect
+# in one of them.
+
+auc_check <- function(model, data) {
+  preds <- predict(model, newdata = data, type = "response")
+  yardstick::roc_auc_vec(truth = factor(data$win, levels = c(1, 0)), estimate = preds)
+}
+
+run_price_analysis <- function(data, label) {
+  
+  print(paste0('###############################################################'))
+  print(paste0('### SURFACE: ', label, '  (n = ', nrow(data), ' runners)'))
+  print(paste0('###############################################################'))
+  
+  if(nrow(data) < 200) {
+    print("WARNING: fewer than 200 rows -- results below may be unstable, interpret with caution")
+  }
+  
+  print('=== WIN RATE BY DECILE OF PRICE MOVEMENT (bsp_60 -> bsp_0) ===')
+  decile_check <- data %>%
+    mutate(move_decile = ntile(pct_move_60_0, 10)) %>%
+    group_by(move_decile) %>%
+    summarise(
+      n             = n(),
+      mean_pct_move = mean(pct_move_60_0),
+      win_rate      = mean(win),
+      mean_bsp_0    = mean(bsp_0)
+    ) %>%
+    arrange(move_decile)
+  print(decile_check)
+  
+  print('=== MODEL 1: win ~ price movement alone ===')
+  model1 <- glm(win ~ pct_move_60_0, data = data, family = binomial())
+  print(summary(model1)$coefficients)
+  print(broom::tidy(model1, exponentiate = TRUE, conf.int = TRUE, conf.method = "Wald"))
+  
+  print('=== MODEL 2: win ~ price movement + final implied probability (control) ===')
+  model2 <- glm(win ~ pct_move_60_0 + bsp_0_prob, data = data, family = binomial())
+  print(summary(model2)$coefficients)
+  print(broom::tidy(model2, exponentiate = TRUE, conf.int = TRUE, conf.method = "Wald"))
+  
+  print('=== MODEL 3: split into early vs late movement ===')
+  model3 <- glm(win ~ pct_move_60_10 + pct_move_10_0 + bsp_0_prob, data = data, family = binomial())
+  print(summary(model3)$coefficients)
+  print(broom::tidy(model3, exponentiate = TRUE, conf.int = TRUE, conf.method = "Wald"))
+  
+  print('=== MODEL COMPARISON (AIC, lower is better) ===')
+  print(tibble(
+    model = c("movement only", "movement + final price", "early/late split + final price"),
+    aic   = c(AIC(model1), AIC(model2), AIC(model3))
+  ))
+  
+  baseline_price_only <- glm(win ~ bsp_0_prob, data = data, family = binomial())
+  
+  print('=== AUC COMPARISON ===')
+  print(tibble(
+    model = c("final price only (baseline)", "movement only", "movement + final price", "early/late split + final price"),
+    auc   = c(
+      auc_check(baseline_price_only, data),
+      auc_check(model1, data),
+      auc_check(model2, data),
+      auc_check(model3, data)
+    )
+  ))
+  
+  invisible(list(model1 = model1, model2 = model2, model3 = model3, decile_check = decile_check))
+}
+
+###############################################################################
+# RUN: overall, then split by surface
+###############################################################################
+
+print(paste("Surface values found in data:", paste(unique(flucs_df$racesurfacename), collapse = ", ")))
+
+results_all <- run_price_analysis(flucs_df, "ALL (pooled)")
+
+# adjust these labels if your actual values differ from "Turf"/"All Weather" --
+# checked against the printed unique values above
+surface_values <- unique(flucs_df$racesurfacename)
+
+results_by_surface <- purrr::map(surface_values, function(surf) {
+  run_price_analysis(flucs_df %>% filter(racesurfacename == surf), surf)
+})
+names(results_by_surface) <- surface_values
+
+print('=== COMPLETE ===')
+
+
+
 
 
 # raceclass NA fill

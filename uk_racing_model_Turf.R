@@ -84,7 +84,7 @@ model_data <- pre_model_data %>%
   filter(!raceid %in% ratings_remove$raceid, # CHECK THESE TO ADD BACK IN!!!
          !(preraceadjustedrating>=70 & kerdos_rating<30), # fix this in racing data script
          racesurfacename == 'Turf',
-         raceclass %in% c(2:6),
+         raceclass %in% c(2:4),
          #racecode %in% c('I', 'IA'),
          #!is.na(pace_pred) # FIX THIS!!!
   ) # %>% mutate(kerdos_rating_rank = as.factor(kerdos_rating_rank))
@@ -143,7 +143,7 @@ source('uk_racing_model_tune.R') # tuning script
 
 #### generate results  PnL ####
 
-test_pnl_dat <- pnl_df(c(1:4)) %>%
+test_pnl_dat <- pnl_df(c(1:1)) %>%
   select(all_of(race_vars), month, all_of(model_vars), c(win:conf_level), -winclass) %>%
   relocate(starts_with('betfairwin'), .before=winprob) %>%
   rename(surface=racesurfacename)

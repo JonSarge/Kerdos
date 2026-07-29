@@ -26,6 +26,7 @@ Kerdos Work Plan (v4)
    - need to separate C1? Trainer & sire
    - Trainer analysis - rating per racecode
    - racecode needs revision - check in model
+   - Aim for C2-6 model with racecode as feature (remove any codes with < 5 race sample)
 
 2. Investigate the ratings anomalies excluded sample
    - A few Kerdos = 20, TF = 100+ still
@@ -35,30 +36,36 @@ Kerdos Work Plan (v4)
    - 1k runners with near-zero kerdos & TF fine --> estimate k from TF then reinsert
    
 3. Price flucs --> Mike to provide update
-   - Fixed O'N, then morning
-   - Mike to msg re data layout etc
+   - rpart to drill into price segments for firm/drift value
 
-4. a. Drill down more into Venue * Draw * Distance
+4. Jockey/Trainer ratings --> ref Mike msg 1st July
+   - See NA logic under pnl code for both ratings
+   - Rating estimation instead of filtering out entire races?
+   - Build in with indicator feature where 1=estimation; 0=rating
+   
+5. Race class - see Mike's sheet
+   - How to build in?
+   - Chat with Mike
+   
+6. a. Drill down more into Venue * Draw * Distance
       - Interactions function in ML recipe
    
-   b. Investigate Pace further
+   b. Investigate Pace further - see pace Sheet from Mike
 
-5. Jockey/Trainer ratings --> ref Mike msg 1st July
-
-6. Model recipe trials
+7. Model recipe trials
    - Smote function
    - try a win-loss XGBoost model --> ask Mike if any plans for Place Bets
    - review & improve the model accuracy, ignoring PnL 
   
-7. Revisit C5-6 models with v4 updates
+8. Revisit C5-6 models with v4 updates
    - Price flucs
   
-8. Lay betting
+9. Lay betting
 
-9. runs_since_win
-   days_since_win
-   won_a_race
-   Bookmaker Odds & the new pre_race_k_estimate_MST - what I mentioned should help with C1
+10. runs_since_win
+    days_since_win
+    won_a_race
+    Bookmaker Odds & the new pre_race_k_estimate_MST - what I mentioned should help with C1
 
 
 A reasonable next step, if you want to build back up deliberately rather than re-adding everything at once: 

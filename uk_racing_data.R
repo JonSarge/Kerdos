@@ -312,7 +312,7 @@ jockey_trainer_dat <- pre_model_data %>%
          trainerfullname, starts_with('Rating_'), -kerdos_rating_rank)
 
 jockey_nas <- jockey_trainer_dat %>%
-  filter(period==5) %>%
+  #filter(period==5) %>%
   group_by(raceid, coursename, raceclass, racecode, numberofrunners) %>%
   summarise(across(Rating_Jockey, ~sum(is.na(.x))),.groups = "drop_last") %>%
   filter(numberofrunners==Rating_Jockey) %>%

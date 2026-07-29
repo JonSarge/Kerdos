@@ -235,20 +235,42 @@ print('=== COMPLETE ===')
 
 
 
+#### RACECLASS ANALYSIS ####
+
+gb_racing_raceclass <- read.csv(
+       "C:/Users/jonsa/OneDrive/STATS_ON/Projects/Mike_Spence/Kerdos/gb_racing_raceclass.csv",
+       comment.char = "#",
+       encoding = "latin1",
+       fileEncoding = "latin1"
+  ) %>%
+  select(-c(horsename:postrace_rating_raw))
 
 
 # raceclass NA fill
 raceclass_dat <- tbl(kon, "gb_racing_data") |>
-  select(raceid, scheduledtimeofracegmt, countrycode, coursename, racenumber, 
+  select(raceid, scheduledtimeofracegmt, countrycode, coursename, racenumber, positionofficial,
          racetype, racesurfacename, raceclass, racecode, prizefund, ratinglimitupper
          ) %>%
   filter(countrycode == 'GBR',
-         racetype == 'Flat') %>%
+         racetype == 'Flat',
+         positionofficial > 0) %>%
+  select(-positionofficial) %>%
   distinct() %>%
   collect() %>%
-  mutate(across(c(raceclass, racecode), ~as.factor(.)))
+  mutate(across(c(raceclass, racecode), ~as.factor(.))) %>%
+  left_join(., gb_racing_raceclass, by='raceid', suffix=c('', '_check'))
 
-raceclass_model_df <- raceclass_dat %>% 
+# check na's
+raceclass_nas <- raceclass_dat %>% 
+  filter(is.na(category_rank)) %>%
+  select(raceid:racecode, contains('category'))
+
+write.csv(raceclass_nas, 'raceclass_nas.csv')
+
+
+  
+  
+  
   filter(!is.na(raceclass),
          !is.na(prizefund),
          is.finite(prizefund),   # Fix 2: drop Inf/-Inf rows

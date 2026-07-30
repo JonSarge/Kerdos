@@ -47,12 +47,12 @@ target_var = ifelse(modelType == 'binary', 'finish_group_binary', 'finish_group'
 
 # Predict finish position using tidymodels
 model_vars = c(
-  #'kerdos_rating_adj',
+  #'kerdos_rating',
   'kerdos_rating_rank',
   #'bsp_prob_run1_fluc',
-  #'fave_price',
-  'bsp_prob',
-  #'bsp_rank',
+  'fave_price',
+  #'bsp_prob',
+  'bsp_rank',
   #'field_size',
   'racecode', 
   'draw_relative',
@@ -62,7 +62,7 @@ model_vars = c(
   'horseage',
   'daysoff'
   #'pace_pred'
-  #'Rating_Jockey'
+  #'jockey_ratings'
   #'Rating_Trainer'
   #'prizefund'
   #'goingabbrev'
@@ -85,12 +85,12 @@ model_data <- pre_model_data %>%
          !(preraceadjustedrating>=70 & kerdos_rating<30), # fix this in racing data script
          racesurfacename == 'Turf',
          raceclass %in% c(2:6),
-         #racecode %in% c('I', 'IA'),
+         !racecode %in% c('S', 'W', 'GA'),
          #!is.na(pace_pred) # FIX THIS!!!
   ) # %>% mutate(kerdos_rating_rank = as.factor(kerdos_rating_rank))
 
 
-jockey_data_nas <- model_data_1 %>%
+jockey_data_nas <- model_data %>%
   group_by(raceid, meetingdate, raceclass) %>%
   summarise(runners = first(numberofrunners),
             na_rating = sum(is.na(Rating_Jockey))) %>%
@@ -128,7 +128,7 @@ train_data <- model_data %>%
   select(raceid, meetingdate, all_of(model_vars), all_of(target_var)) # final select
 
 # final check for training data na's
-train_data_nas <- train_data %>% filter(if_any(everything(), is.na))
+train_data_nas <- train_data %>% filter(!complete.cases(.))
 
 
 #### tune xgboost model ####
@@ -144,19 +144,25 @@ min_n = 10 # specify minimum tree n sequenc
 tree_depth = 3
 learn_rate = 0.1
 loss_reduction = 0.01
-setSeed=1
+setSeed=0
 source('uk_racing_model_tune.R') # tuning script
 
 #### generate results  PnL ####
 
-test_pnl_dat <- pnl_df(c(1:1)) %>%
+test_pnl_dat <- pnl_df(c(1:4)) %>%
   select(all_of(race_vars), month, all_of(model_vars), c(win:conf_level), 
          Rating_Jockey, Rating_Trainer, -winclass) %>%
   relocate(starts_with('betfairwin'), .before=winprob) %>%
   rename(surface=racesurfacename)
 
+
+# final check for training data na's
+test_data_nas <- test_pnl_dat %>% 
+  select(-c(ave_win_bsp, run1_raceclass, starts_with('Rating_'))) %>% 
+  filter(!complete.cases(.))
+
 # pnl tables
-conf_levels = c(0, 0.025, 0.05)
+conf_levels = c(0, 0.025, 0.075)
 for(i in 1:length(conf_levels)){
   mins = c(0, conf_levels[i], 0.1) # exp val; conf level; winprob min
   print(cbind(pnl_table(test_pnl_dat, c( 'surface', 'bsp_index_all' ), mins[1], mins[2], mins[3]), conf=conf_levels[i]))
@@ -199,7 +205,7 @@ jockey_pnl_summ <- jockey_pnl_dat %>%
 
 jockey_pnl_summ <- jockey_pnl_dat %>%
   group_by(raceid) %>%
-  filter(jockey_rating==max(jockey_rating) & betfairwinsp < 50) %>% ungroup() %>%
+  filter(jockey_rating==max(jockey_rating) & betfairwinsp < 30) %>% ungroup() %>%
   mutate(ave_win_bsp=ifelse(win==1, betfairwinsp, NA)) %>%
   #group_by(bsp_index, bsp_bin) %>%
   summarise(bets=n(),
@@ -218,7 +224,7 @@ trainer_pnl_dat <- test_pnl_dat %>%
 
 trainer_pnl_summ <- trainer_pnl_dat %>%
   group_by(raceid) %>%
-  filter(trainer_rating==max(trainer_rating) & betfairwinsp <= 2.5) %>% ungroup() %>%
+  filter(trainer_rating==max(trainer_rating) & betfairwinsp <= 30) %>% ungroup() %>%
   mutate(ave_win_bsp=ifelse(win==1, betfairwinsp, NA)) %>%
   #group_by(bsp_index, bsp_bin) %>%
   summarise(bets=n(),

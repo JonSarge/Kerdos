@@ -45,6 +45,8 @@ Kerdos Work Plan (v4)
    - Rating estimation instead of filtering out entire races?
    - Build in with indicator feature where 1=estimation; 0=rating
    
+   - Change in J/T from run1
+   
 5. Race class - see Mike's sheet
    - How to build in?
    - Chat with Mike

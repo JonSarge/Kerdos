@@ -49,53 +49,54 @@ target_var = ifelse(modelType == 'binary', 'finish_group_binary', 'finish_group'
 model_vars = c(
   #'kerdos_rating',
   'kerdos_rating_rank',
-  #'bsp_prob_run1_fluc',
   'fave_price',
-  #'bsp_prob',
-  'bsp_rank',
-  #'field_size',
+  'bsp_prob',
+  #'bsp_rank',
   'racecode', 
   'draw_relative',
   'distance_m',
   'weightcarried', # weight_relative
   'raceclass', 
   'horseage',
-  'daysoff'
-  #'pace_pred'
-  #'jockey_ratings'
-  #'Rating_Trainer'
-  #'prizefund'
-  #'goingabbrev'
-  #'iphintsoverallpace'
-  #'class_prior'
-  #'toprated',
-  #'jockeyinform' # jockey ability more pronounced for all-weather (winter) 
-  #'significantimprover',
-  #'hottrainer',
+  'daysoff',
+  'jockeyinform', # jockey ability more pronounced for all-weather (winter) 
+  'hottrainer',
+  'toprated',
+  'ratingstars'
+  #'field_size'
+  #'numberofrunners'
+  #'bharating',
+  #'rating0to100',
+  #'rating123'
   #'tissuepricedecimal'
-  #'bharating', 
-  #'rating0to100'
-  #'ratingstars', # SIGNIFICANT
-  #'rating123',
+  #'significantimprover',
+  #'goingabbrev',
+  #'iphintsoverallpace',
+  #'pace_pred',
+  #'bsp_prob_run1_fluc'
+  #'bsp_prob',
+  #'jockey_ratings'
+  #'class_prior',
 )
+
+# tf rating na races
+tf_rating_nas <- pre_model_data %>% 
+  select(raceid, meetingdate, toprated, bharating, rating0to100, jockeyinform, pace_pred,
+         hottrainer, ratingstars, rating123, tissuepricedecimal, significantimprover) %>% 
+  filter(!complete.cases(.)) %>%
+  pull(raceid) %>% unique()
 
 # modelling df w. final filters    
 model_data <- pre_model_data %>%  
   filter(!raceid %in% ratings_remove$raceid, # CHECK THESE TO ADD BACK IN!!!
-         !(preraceadjustedrating>=70 & kerdos_rating<30), # fix this in racing data script
+         !(preraceadjustedrating >= 70 & kerdos_rating < 30), # fix this in racing data script
          racesurfacename == 'Turf',
          raceclass %in% c(2:6),
          !racecode %in% c('S', 'W', 'GA'),
+         !raceid %in% tf_rating_nas
          #!is.na(pace_pred) # FIX THIS!!!
   ) # %>% mutate(kerdos_rating_rank = as.factor(kerdos_rating_rank))
 
-
-jockey_data_nas <- model_data %>%
-  group_by(raceid, meetingdate, raceclass) %>%
-  summarise(runners = first(numberofrunners),
-            na_rating = sum(is.na(Rating_Jockey))) %>%
-  ungroup() %>%
-  filter(na_rating/runners ==1)
 
 # check ratings correlate
 hist_data <- model_data %>% filter(!preraceadjustedrating %in% c(0,999))
@@ -149,11 +150,12 @@ source('uk_racing_model_tune.R') # tuning script
 
 #### generate results  PnL ####
 
-test_pnl_dat <- pnl_df(c(1:4)) %>%
+test_pnl_dat <- pnl_df(c(1:5)) %>%
   select(all_of(race_vars), month, all_of(model_vars), c(win:conf_level), 
          Rating_Jockey, Rating_Trainer, -winclass) %>%
   relocate(starts_with('betfairwin'), .before=winprob) %>%
-  rename(surface=racesurfacename)
+  rename(surface=racesurfacename) %>%
+  filter(betfairwinsp <= 100)
 
 
 # final check for training data na's
@@ -174,7 +176,7 @@ pnl_table(test_pnl_dat, c( 'surface', 'winprob_rank' ), 0, 0, 0.1) # winprob ran
 pnl_table(test_pnl_dat, c( 'surface', 'raceclass' ), 0, 0, 0.1) # winprob rank
 pnl_table(test_pnl_dat, c( 'surface', 'racecode' ), 0, 0, 0.1) # winprob rank
 
-# add flat market pnl
+
 
 # check model v market
 market_model_df <- test_pnl_dat %>% 
@@ -239,7 +241,7 @@ trainer_pnl_summ <- trainer_pnl_dat %>%
 
 test_pnl_filtered <- test_pnl_dat %>%
   mutate(pick = ifelse(exp_value >= 0 &
-                       conf_level >= 0.04 &
+                       conf_level >= 0.0 &
                        winprob_adj >= 0.1, 1, 0))
 
 test_pnl_filtered %>% 

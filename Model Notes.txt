@@ -35,6 +35,8 @@ Kerdos Work Plan (v4)
    - 12k runners with TF=0/999 & kerdos rating fine --> reinsert
    - 1k runners with near-zero kerdos & TF fine --> estimate k from TF then reinsert
    
+   - Fix subgroup of under estimated kerdos runners in the k-tf plot
+   
 3. Price flucs --> Mike to provide update
    - rpart to drill into price segments for firm/drift value
 

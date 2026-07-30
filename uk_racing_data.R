@@ -283,7 +283,7 @@ pre_model_data <- gb_flat_all_cols %>%
          kerdos_rating_adj = pnorm(kerdos_rating_z) * 100, # 0-100 adj
          # add k-rating rank per race here (after any race filtering) 
          kerdos_rating_rank=rank(-kerdos_rating_z, ties.method="min"),
-         bsp_rank=rank(betfairwinsp, ties.method="min")
+         bsp_rank=rank(betfairwinsp, ties.method="min")/numberofrunners,
          ) %>% ungroup() %>%
   relocate(contains('kerdos_rating'), .after=pre_race_rating_adjusted) %>%
   select(!c(all_of(na_cols), all_of(zero_cols))) %>%

@@ -73,6 +73,10 @@ bsp_int=c(seq(0, 10, 2.5), 15, 25, 50, 1001)
 jockey_ratings <- read.csv('jockey_ratings.csv')
 trainer_ratings <- read.csv('trainer_ratings.csv')
 
+# load flucs data
+load("~/Kerdos/kerdos_flucs_data.rda")
+
+
 # get GB Flat Races - bind all years here!
 gb_flat_all_cols <- gb_racing_sql %>%
   
@@ -292,6 +296,10 @@ pre_model_data <- gb_flat_all_cols %>%
             by=c('jockeyfullname', 'Period')) %>%
   left_join(., trainer_ratings %>% select(trainerfullname=Trainer, Period, Rating=OVERALL), 
             by=c('trainerfullname', 'Period'), suffix=c('_Jockey', '_Trainer')) %>%
+  # load flucs data
+  left_join(., flucs_data_csv %>% 
+              select(raceid, horsecode, bsp_60, bsp_10, bsp_5) %>%
+              mutate(horsecode=nm(horsecode)), by=c('raceid', 'horsecode')) %>% 
   arrange(scheduledtimeofracegmt, saddlecloth)
 
 # rating anomalies to be removed
@@ -323,6 +331,11 @@ trainer_nas <- jockey_trainer_dat %>%
   group_by(raceid, coursename, raceclass, racecode, numberofrunners) %>%
   summarise(across(Rating_Trainer, ~sum(is.na(.x))),.groups = "drop_last") %>%
   rename(trainer_rating_nas=Rating_Trainer)
+
+flucs_nas <- pre_model_data %>% 
+  filter(is.na(bsp_60)) %>% 
+  select(raceid, meetingdate, starts_with('bsp_')) %>%
+  pull(raceid) %>% unique()
 
 
 # check any k-rating na's

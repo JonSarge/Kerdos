@@ -38,6 +38,7 @@ Kerdos Work Plan (v4)
    - Fix subgroup of under estimated kerdos runners in the k-tf plot
    
 3. Price flucs --> Mike to provide update
+   - Use bsp_60 for bsp_prob
    - rpart to drill into price segments for firm/drift value
 
 4. Jockey/Trainer ratings --> ref Mike msg 1st July

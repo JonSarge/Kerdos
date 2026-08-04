@@ -47,11 +47,11 @@ target_var = ifelse(modelType == 'binary', 'finish_group_binary', 'finish_group'
 
 # Predict finish position using tidymodels
 model_vars = c(
-  #'kerdos_rating',
+  'kerdos_rating',
   'kerdos_rating_rank',
   'fave_price',
   'bsp_prob',
-  #'bsp_rank',
+  'bsp_rank',
   'racecode', 
   'draw_relative',
   'distance_m',
@@ -93,7 +93,8 @@ model_data <- pre_model_data %>%
          racesurfacename == 'Turf',
          raceclass %in% c(2:6),
          !racecode %in% c('S', 'W', 'GA'),
-         !raceid %in% tf_rating_nas
+         !raceid %in% tf_rating_nas,
+         #!raceid %in% flucs_nas
          #!is.na(pace_pred) # FIX THIS!!!
   ) # %>% mutate(kerdos_rating_rank = as.factor(kerdos_rating_rank))
 
@@ -117,7 +118,7 @@ model_formula = as.formula(paste(target_var, '~', paste(model_vars, collapse = "
 
 # train/test dates
 train_date_start = '2024-01-01'
-test_date_start = '2026-01-01'   # run from 1st June with training data up to 30th May
+test_date_start = '2026-04-01'   # run from 1st June with training data up to 30th May
 test_date_end = '2026-12-31'
 
 # training sample w final filtering
@@ -158,13 +159,14 @@ test_pnl_dat <- pnl_df(c(1:5)) %>%
   filter(betfairwinsp <= 100)
 
 
+
 # final check for training data na's
 test_data_nas <- test_pnl_dat %>% 
   select(-c(ave_win_bsp, run1_raceclass, starts_with('Rating_'))) %>% 
   filter(!complete.cases(.))
 
 # pnl tables
-conf_levels = c(0, 0.025, 0.075)
+conf_levels = c(0, 0.025, 0.05)
 for(i in 1:length(conf_levels)){
   mins = c(0, conf_levels[i], 0.1) # exp val; conf level; winprob min
   print(cbind(pnl_table(test_pnl_dat, c( 'surface', 'bsp_index_all' ), mins[1], mins[2], mins[3]), conf=conf_levels[i]))

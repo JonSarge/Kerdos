@@ -47,11 +47,11 @@ target_var = ifelse(modelType == 'binary', 'finish_group_binary', 'finish_group'
 
 # Predict finish position using tidymodels
 model_vars = c(
-  'kerdos_rating',
+  #'kerdos_rating',
   'kerdos_rating_rank',
   'fave_price',
   'bsp_prob',
-  'bsp_rank',
+  #'bsp_rank',
   'racecode', 
   'draw_relative',
   'distance_m',
@@ -59,15 +59,15 @@ model_vars = c(
   'raceclass', 
   'horseage',
   'daysoff',
+  'jockey_rating',
   'jockeyinform', # jockey ability more pronounced for all-weather (winter) 
   'hottrainer',
   'toprated',
-  'ratingstars'
+  'ratingstars',
   #'field_size'
-  #'numberofrunners'
-  #'bharating',
-  #'rating0to100',
-  #'rating123'
+  'bharating',
+  'rating0to100',
+  'rating123'
   #'tissuepricedecimal'
   #'significantimprover',
   #'goingabbrev',
@@ -94,9 +94,13 @@ model_data <- pre_model_data %>%
          raceclass %in% c(2:6),
          !racecode %in% c('S', 'W', 'GA'),
          !raceid %in% tf_rating_nas,
-         #!raceid %in% flucs_nas
+         !raceid %in% jockey_nas$raceid
          #!is.na(pace_pred) # FIX THIS!!!
-  ) # %>% mutate(kerdos_rating_rank = as.factor(kerdos_rating_rank))
+  ) %>% 
+  group_by(raceid) %>% # add this to pre_model_dat
+  mutate(jockey_rating = nm(scale(jockey_rating))) %>%
+  ungroup()
+#mutate(bsp_prob_60 = 1 / bsp_60)
 
 
 # check ratings correlate
@@ -118,7 +122,7 @@ model_formula = as.formula(paste(target_var, '~', paste(model_vars, collapse = "
 
 # train/test dates
 train_date_start = '2024-01-01'
-test_date_start = '2026-04-01'   # run from 1st June with training data up to 30th May
+test_date_start = '2026-01-01'   # run from 1st June with training data up to 30th May
 test_date_end = '2026-12-31'
 
 # training sample w final filtering
@@ -157,7 +161,6 @@ test_pnl_dat <- pnl_df(c(1:5)) %>%
   relocate(starts_with('betfairwin'), .before=winprob) %>%
   rename(surface=racesurfacename) %>%
   filter(betfairwinsp <= 100)
-
 
 
 # final check for training data na's

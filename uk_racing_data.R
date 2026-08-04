@@ -73,8 +73,15 @@ bsp_int=c(seq(0, 10, 2.5), 15, 25, 50, 1001)
 jockey_ratings <- read.csv('jockey_ratings.csv')
 trainer_ratings <- read.csv('trainer_ratings.csv')
 
+# use mins to fill na's not in a jockey period
+jockey_rating_mins <- jockey_ratings %>% 
+  group_by(jockeyfullname=Jockey) %>% 
+  summarise(Rating_Jockey_min=min(RATING)) %>% 
+  ungroup()
+
+
 # load flucs data
-load("~/Kerdos/kerdos_flucs_data.rda")
+load("kerdos_flucs_data.rda")
 
 
 # get GB Flat Races - bind all years here!
@@ -296,11 +303,16 @@ pre_model_data <- gb_flat_all_cols %>%
             by=c('jockeyfullname', 'Period')) %>%
   left_join(., trainer_ratings %>% select(trainerfullname=Trainer, Period, Rating=OVERALL), 
             by=c('trainerfullname', 'Period'), suffix=c('_Jockey', '_Trainer')) %>%
+  # attach minimum jockey rating to replace NA's
+  left_join(., jockey_rating_mins, by='jockeyfullname') %>%
+  mutate(jockey_rating = ifelse(is.na(Rating_Jockey), Rating_Jockey_min, Rating_Jockey),
+         jockey_rating_na=as.factor(ifelse(is.na(Rating_Jockey), 1, 0))) %>%
   # load flucs data
   left_join(., flucs_data_csv %>% 
               select(raceid, horsecode, bsp_60, bsp_10, bsp_5) %>%
               mutate(horsecode=nm(horsecode)), by=c('raceid', 'horsecode')) %>% 
   arrange(scheduledtimeofracegmt, saddlecloth)
+
 
 # rating anomalies to be removed
 ratings_remove <- pre_model_data %>% 
@@ -316,18 +328,26 @@ ratings_remove <- pre_model_data %>%
 # check jockey/trainer NA's
 jockey_trainer_dat <- pre_model_data %>%
   select(raceid, meetingdate, period=Period,
-         coursename, racenumber, raceclass, racecode, numberofrunners, jockeyfullname, 
-         trainerfullname, starts_with('Rating_'), -kerdos_rating_rank)
+         coursename, racenumber, raceclass, racecode, numberofrunners, bsp=betfairwinsp, jockeyfullname, 
+         trainerfullname, starts_with('Rating_'), jockey_rating, jockey_rating_na, -kerdos_rating_rank) 
+
+jockey_nas <- jockey_trainer_dat %>%
+  #filter(period==5) %>%
+  group_by(raceid, coursename, raceclass, racecode, numberofrunners) %>%
+  summarise(across(jockey_rating, ~sum(is.na(.x))),.groups = "drop_last") %>%
+  rename(jockey_rating_nas=jockey_rating) %>%
+  filter(jockey_rating_nas > 0)
+
 
 jockey_nas <- jockey_trainer_dat %>%
   #filter(period==5) %>%
   group_by(raceid, coursename, raceclass, racecode, numberofrunners) %>%
   summarise(across(Rating_Jockey, ~sum(is.na(.x))),.groups = "drop_last") %>%
-  filter(numberofrunners==Rating_Jockey) %>%
+  #filter(numberofrunners==Rating_Jockey) %>%
   rename(jockey_rating_nas=Rating_Jockey)
 
 trainer_nas <- jockey_trainer_dat %>%
-  filter(period==5) %>%
+  #filter(period==5) %>%
   group_by(raceid, coursename, raceclass, racecode, numberofrunners) %>%
   summarise(across(Rating_Trainer, ~sum(is.na(.x))),.groups = "drop_last") %>%
   rename(trainer_rating_nas=Rating_Trainer)
@@ -395,7 +415,7 @@ dbDisconnect(kon)
 # # leave these out
 # excl_vars <- c('scheduledtimeofracelocal',	'racetitle',	'distancetext',	'distanceyards',	'distancefurlongs',	
 #                'courseextraid',	'eligibilityagemax',	'ratinglimitlower',	'resultsstatus', 'trw1',	'trw2',	'trw3',	'trw4',	'trw5',	
-#                'tfwfa',	'positionstatus',	'ispfavtext',	'ownercode',	'ownerfullname', 'performancesymbol',	'tissuepricefractional',	
+#                'tfwf',	'positionstatus',	'ispfavtext',	'ownercode',	'ownerfullname', 'performancesymbol',	'tissuepricefractional',	
 #                'statusdescription', 'statusid',	'betfairbackprice',	'crsdiswinfavtext',	'bfselectionid',	'sportsbookdecimalodds',	
 #                'sportsbookfractionalodds', 'masterinplaysymbol',	'pre_race_rating_symbol',	'sirehistoricalrating',	
 #                'sirehistoricalsymbol',	'sireratingdisplay', 'damname',	'damhistoricalrating',	'damhistoricalsymbol',	'damratingdisplay',	

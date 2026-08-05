@@ -469,12 +469,12 @@ bsp_dat <- test_pnl_dat %>%
 
 rpart_dat <- bsp_dat %>% 
   filter(#pick==1,
-         conf_level > 0.05,
-         raceclass %in% c(2:6)
+         conf_level > 0.015,
+         raceclass %in% c(2:4)
   )
 
-racing_roi <- rpart(profit ~ betfairwinsp + fluc_5_0, rpart_dat, minbucket=20)
-chart.rpart(racing_roi, paste0('ROI (n=', nrow(rpart_dat), ')'))
+racing_roi <- rpart(profit ~ betfairwinsp + fluc_60_0, rpart_dat, minbucket=20)
+chart.rpart(racing_roi, paste0('Exchange Fluc ROI (C2; n=', nrow(rpart_dat), ')'))
 
 
 # pull remaining NA's and model those with prizefund for current and prior run

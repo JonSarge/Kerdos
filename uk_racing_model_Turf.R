@@ -47,11 +47,11 @@ target_var = ifelse(modelType == 'binary', 'finish_group_binary', 'finish_group'
 
 # Predict finish position using tidymodels
 model_vars = c(
-  #'kerdos_rating',
+  'kerdos_rating',
   'kerdos_rating_rank',
   'fave_price',
   'bsp_prob',
-  #'bsp_rank',
+  'bsp_rank',
   'racecode', 
   'draw_relative',
   'distance_m',
@@ -59,24 +59,21 @@ model_vars = c(
   'raceclass', 
   'horseage',
   'daysoff',
-  'jockey_rating',
+  #'jockey_rating',
   'jockeyinform', # jockey ability more pronounced for all-weather (winter) 
   'hottrainer',
   'toprated',
   'ratingstars',
-  #'field_size'
+  'field_size',
   'bharating',
   'rating0to100',
-  'rating123'
-  #'tissuepricedecimal'
+  #'rating123',
+  #'tissuepricedecimal',
   #'significantimprover',
   #'goingabbrev',
-  #'iphintsoverallpace',
-  #'pace_pred',
+  'iphintsoverallpace',
+  'pace_pred'
   #'bsp_prob_run1_fluc'
-  #'bsp_prob',
-  #'jockey_ratings'
-  #'class_prior',
 )
 
 # tf rating na races
@@ -91,15 +88,15 @@ model_data <- pre_model_data %>%
   filter(!raceid %in% ratings_remove$raceid, # CHECK THESE TO ADD BACK IN!!!
          !(preraceadjustedrating >= 70 & kerdos_rating < 30), # fix this in racing data script
          racesurfacename == 'Turf',
-         raceclass %in% c(2:6),
-         !racecode %in% c('S', 'W', 'GA'),
+         raceclass %in% c(2:4),
+         !racecode %in% c('S', 'W', 'GA', 'IM'),
          !raceid %in% tf_rating_nas,
-         !raceid %in% jockey_nas$raceid
+         #!raceid %in% jockey_nas$raceid
          #!is.na(pace_pred) # FIX THIS!!!
   ) %>% 
   group_by(raceid) %>% # add this to pre_model_dat
   mutate(jockey_rating = nm(scale(jockey_rating))) %>%
-  ungroup()
+  ungroup() 
 #mutate(bsp_prob_60 = 1 / bsp_60)
 
 
@@ -169,7 +166,7 @@ test_data_nas <- test_pnl_dat %>%
   filter(!complete.cases(.))
 
 # pnl tables
-conf_levels = c(0, 0.025, 0.05)
+conf_levels = c(0, 0.025, 0.075)
 for(i in 1:length(conf_levels)){
   mins = c(0, conf_levels[i], 0.1) # exp val; conf level; winprob min
   print(cbind(pnl_table(test_pnl_dat, c( 'surface', 'bsp_index_all' ), mins[1], mins[2], mins[3]), conf=conf_levels[i]))

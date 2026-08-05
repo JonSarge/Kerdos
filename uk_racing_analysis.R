@@ -452,6 +452,31 @@ pace_dat_summ <- pace_df %>%
   
 
 
+
+#### rpart bet strategy ####
+
+bsp_dat <- test_pnl_dat %>% 
+  select(raceid, meetingdate, raceclass, racecode, betfairwinsp, bsp_index, bsp_bin, bsp_60, bsp_10, bsp_5, winprice, conf_level, pick, profit) %>%
+  mutate(bsp_0=betfairwinsp) %>%
+  mutate(across(c(bsp_60, bsp_10, bsp_0), ~1/.)) %>%
+  mutate(fluc_60_10 = bsp_10 - bsp_60,
+         fluc_60_5 = bsp_5 - bsp_60,
+         fluc_60_0 = bsp_0 - bsp_60,
+         fluc_10_5 = bsp_5 - bsp_10,
+         fluc_10_0 = bsp_0 - bsp_10,
+         fluc_5_0 = bsp_0 - bsp_5
+         )
+
+rpart_dat <- bsp_dat %>% 
+  filter(#pick==1,
+         conf_level > 0.05,
+         raceclass %in% c(2:6)
+  )
+
+racing_roi <- rpart(profit ~ betfairwinsp + fluc_5_0, rpart_dat, minbucket=20)
+chart.rpart(racing_roi, paste0('ROI (n=', nrow(rpart_dat), ')'))
+
+
 # pull remaining NA's and model those with prizefund for current and prior run
 
 # rcaeclass na's

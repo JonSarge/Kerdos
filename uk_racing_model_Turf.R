@@ -47,32 +47,33 @@ target_var = ifelse(modelType == 'binary', 'finish_group_binary', 'finish_group'
 
 # Predict finish position using tidymodels
 model_vars = c(
-  'kerdos_rating',
+  #'kerdos_rating',
   'kerdos_rating_rank',
   'fave_price',
   'bsp_prob',
   'bsp_rank',
-  'racecode', 
+  'category_rank',
+  'category_blended_score',
   'draw_relative',
   'distance_m',
   'weightcarried', # weight_relative
-  'raceclass', 
+  #'raceclass', 
   'horseage',
-  'daysoff',
+  'daysoff'
   #'jockey_rating',
-  'jockeyinform', # jockey ability more pronounced for all-weather (winter) 
-  'hottrainer',
-  'toprated',
-  'ratingstars',
-  'field_size',
-  'bharating',
-  'rating0to100',
+  #'jockeyinform', # jockey ability more pronounced for all-weather (winter) 
+  #'hottrainer',
+  #'toprated',
+  #'ratingstars',
+  #'field_size',
+  #'bharating',
+  #'rating0to100',
   #'rating123',
   #'tissuepricedecimal',
   #'significantimprover',
   #'goingabbrev',
-  'iphintsoverallpace',
-  'pace_pred'
+  #'iphintsoverallpace',
+  #'pace_pred'
   #'bsp_prob_run1_fluc'
 )
 
@@ -88,16 +89,15 @@ model_data <- pre_model_data %>%
   filter(!raceid %in% ratings_remove$raceid, # CHECK THESE TO ADD BACK IN!!!
          !(preraceadjustedrating >= 70 & kerdos_rating < 30), # fix this in racing data script
          racesurfacename == 'Turf',
-         raceclass %in% c(2:4),
+         raceclass %in% c(2:6),
          !racecode %in% c('S', 'W', 'GA', 'IM'),
-         !raceid %in% tf_rating_nas,
+         #!raceid %in% tf_rating_nas,
          #!raceid %in% jockey_nas$raceid
          #!is.na(pace_pred) # FIX THIS!!!
   ) %>% 
   group_by(raceid) %>% # add this to pre_model_dat
   mutate(jockey_rating = nm(scale(jockey_rating))) %>%
   ungroup() 
-#mutate(bsp_prob_60 = 1 / bsp_60)
 
 
 # check ratings correlate
@@ -126,8 +126,7 @@ test_date_end = '2026-12-31'
 train_data <- model_data %>% 
   filter(meetingdate >= train_date_start,
          meetingdate < test_date_start,
-         between(betfairwinsp, 1.2, 50)
-         ) %>%
+         between(betfairwinsp, 1.2, 50)) %>%
   select(raceid, meetingdate, all_of(model_vars), all_of(target_var)) # final select
 
 # final check for training data na's

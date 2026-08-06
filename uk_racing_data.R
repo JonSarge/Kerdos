@@ -74,7 +74,7 @@ jockey_ratings <- read.csv('jockey_ratings.csv')
 trainer_ratings <- read.csv('trainer_ratings.csv')
 
 # class ranks
-class_rankings <- read.csv('gb_raceclass_data.csv')
+class_rankings <- read.csv('gb_racing_raceclass.csv')
 
 # use mins to fill na's not in a jockey period
 jockey_rating_mins <- jockey_ratings %>% 

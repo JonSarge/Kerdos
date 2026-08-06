@@ -47,7 +47,8 @@ target_var = ifelse(modelType == 'binary', 'finish_group_binary', 'finish_group'
 
 # Predict finish position using tidymodels
 model_vars = c(
-  #'kerdos_rating',
+  'bsp_prob_run1_fluc',
+  'kerdos_rating',
   'kerdos_rating_rank',
   'fave_price',
   'bsp_prob',
@@ -57,11 +58,12 @@ model_vars = c(
   'draw_relative',
   'distance_m',
   'weightcarried', # weight_relative
-  #'raceclass', 
   'horseage',
   'daysoff'
   #'jockey_rating',
-  #'jockeyinform', # jockey ability more pronounced for all-weather (winter) 
+  #'trainer_rating',
+  #''raceclass', 
+  #'jockeyinform',
   #'hottrainer',
   #'toprated',
   #'ratingstars',
@@ -74,7 +76,6 @@ model_vars = c(
   #'goingabbrev',
   #'iphintsoverallpace',
   #'pace_pred'
-  #'bsp_prob_run1_fluc'
 )
 
 # tf rating na races
@@ -126,7 +127,8 @@ test_date_end = '2026-12-31'
 train_data <- model_data %>% 
   filter(meetingdate >= train_date_start,
          meetingdate < test_date_start,
-         between(betfairwinsp, 1.2, 50)) %>%
+         #between(betfairwinsp, 1.1, 50)
+         ) %>%
   select(raceid, meetingdate, all_of(model_vars), all_of(target_var)) # final select
 
 # final check for training data na's
@@ -165,7 +167,7 @@ test_data_nas <- test_pnl_dat %>%
   filter(!complete.cases(.))
 
 # pnl tables
-conf_levels = c(0, 0.025, 0.075)
+conf_levels = c(0, 0.025, 0.06)
 for(i in 1:length(conf_levels)){
   mins = c(0, conf_levels[i], 0.1) # exp val; conf level; winprob min
   print(cbind(pnl_table(test_pnl_dat, c( 'surface', 'bsp_index_all' ), mins[1], mins[2], mins[3]), conf=conf_levels[i]))

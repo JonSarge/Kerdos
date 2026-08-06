@@ -73,6 +73,9 @@ bsp_int=c(seq(0, 10, 2.5), 15, 25, 50, 1001)
 jockey_ratings <- read.csv('jockey_ratings.csv')
 trainer_ratings <- read.csv('trainer_ratings.csv')
 
+# class ranks
+class_rankings <- read.csv('gb_raceclass_data.csv')
+
 # use mins to fill na's not in a jockey period
 jockey_rating_mins <- jockey_ratings %>% 
   group_by(jockeyfullname=Jockey) %>% 
@@ -303,14 +306,16 @@ pre_model_data <- gb_flat_all_cols %>%
             by=c('jockeyfullname', 'Period')) %>%
   left_join(., trainer_ratings %>% select(trainerfullname=Trainer, Period, Rating=OVERALL), 
             by=c('trainerfullname', 'Period'), suffix=c('_Jockey', '_Trainer')) %>%
-  # attach minimum jockey rating to replace NA's
+  # join minimum jockey rating to replace NA's
   left_join(., jockey_rating_mins, by='jockeyfullname') %>%
   mutate(jockey_rating = ifelse(is.na(Rating_Jockey), Rating_Jockey_min, Rating_Jockey),
          jockey_rating_na=as.factor(ifelse(is.na(Rating_Jockey), 1, 0))) %>%
-  # load flucs data
+  # join flucs data
   left_join(., flucs_data_csv %>% 
               select(raceid, horsecode, bsp_60, bsp_10, bsp_5) %>%
               mutate(horsecode=nm(horsecode)), by=c('raceid', 'horsecode')) %>% 
+  # join class data
+  left_join(., class_rankings, by='raceid') %>%
   arrange(scheduledtimeofracegmt, saddlecloth)
 
 
@@ -356,6 +361,8 @@ flucs_nas <- pre_model_data %>%
   filter(is.na(bsp_60)) %>% 
   select(raceid, meetingdate, starts_with('bsp_')) %>%
   pull(raceid) %>% unique()
+
+class_nas <- pre_model_data %>% filter(is.na(category_rank))
 
 
 # check any k-rating na's

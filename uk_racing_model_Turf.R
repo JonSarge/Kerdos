@@ -51,8 +51,15 @@ model_vars = c(
   'kerdos_rating',
   'kerdos_rating_rank',
   'fave_price',
-  'bsp_prob',
-  'bsp_rank',
+  #'bsp_prob',
+  'bsp_prob_60',
+  #'bsp_prob_60_10',
+  #'bsp_prob_60_5',
+  #'bsp_prob_60_0',
+  #'bsp_prob_10_5',
+  #'bsp_prob_10_0',
+  #'bsp_prob_5_0',
+  #'bsp_rank',
   'category_rank',
   'category_blended_score',
   'draw_relative',
@@ -98,7 +105,18 @@ model_data <- pre_model_data %>%
   ) %>% 
   group_by(raceid) %>% # add this to pre_model_dat
   mutate(jockey_rating = nm(scale(jockey_rating))) %>%
-  ungroup() 
+  ungroup() %>%
+  mutate(bsp_prob_60 = 1/bsp_60,
+         bsp_prob_10 = 1/bsp_10,
+         bsp_prob_5 = 1/bsp_5,
+         bsp_prob_60_10 = bsp_prob_10 - bsp_prob_60,
+         bsp_prob_60_5 = bsp_prob_5 - bsp_prob_60,
+         bsp_prob_60_0 = bsp_prob - bsp_prob_60,
+         bsp_prob_10_5 = bsp_prob_5 - bsp_prob_10,
+         bsp_prob_10_0 = bsp_prob - bsp_prob_10,
+         bsp_prob_5_0 = bsp_prob - bsp_prob_5
+         ) %>%
+  filter(!is.na(bsp_prob_60))
 
 
 # check ratings correlate
@@ -153,7 +171,7 @@ source('uk_racing_model_tune.R') # tuning script
 
 #### generate results  PnL ####
 
-test_pnl_dat <- pnl_df(c(1:5)) %>%
+test_pnl_dat <- pnl_df(c(1:1)) %>%
   select(all_of(race_vars), month, all_of(model_vars), c(win:conf_level), 
          Rating_Jockey, Rating_Trainer, -winclass) %>%
   relocate(starts_with('betfairwin'), .before=winprob) %>%
@@ -167,7 +185,7 @@ test_data_nas <- test_pnl_dat %>%
   filter(!complete.cases(.))
 
 # pnl tables
-conf_levels = c(0, 0.025, 0.06)
+conf_levels = c(0, 0.04, 0.08)
 for(i in 1:length(conf_levels)){
   mins = c(0, conf_levels[i], 0.1) # exp val; conf level; winprob min
   print(cbind(pnl_table(test_pnl_dat, c( 'surface', 'bsp_index_all' ), mins[1], mins[2], mins[3]), conf=conf_levels[i]))
@@ -267,7 +285,7 @@ hist(test_pnl_dat$winprob_adj)
 
 #### save rds file ####
 
-saveRDS(final_model, file = 'gb_turf_winprobs_2026-06-24.rds')
+saveRDS(final_model, file = paste0('gb_turf_winprobs_', Sys.Date(), '.rds'))
 
  
  

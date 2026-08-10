@@ -276,16 +276,16 @@ print(na_cols)
 zero_cols <- na_zero_cols_df %>% summarise_all(~all(.==0)) %>% select_if(~.) %>% names()
 print(zero_cols)
 
+kerdos_rating_preds = predict(kerdos_est_model, gb_flat_all_cols)
+
 # generate pre-model df with ratings adj's
 pre_model_data <- gb_flat_all_cols %>%
   # barrier pos e.g. 1_3 = inside, 10+ = wide etc
   mutate(across(all_of(factor_vars), ~fct(.))) %>%
   # ESTIMATE MISSING K/TF RATINGS:
-  mutate(kerdos_rating_pred = predict(kerdos_est_model, .), # predictions
-         # kerdos rating w/ estimates for NA's
-         kerdos_rating = case_when(
-           is.na(pre_race_rating_adjusted) & !preraceadjustedrating %in% c(0,999) ~ kerdos_rating_pred, # Kerdos NA's
-           pre_race_rating_adjusted < 20 & between(preraceadjustedrating, 40, 200) ~ kerdos_rating_pred,
+  mutate(kerdos_rating = case_when(  # kerdos rating w/ estimates for NA's
+           is.na(pre_race_rating_adjusted) & !preraceadjustedrating %in% c(0,999) ~ kerdos_rating_preds, # Kerdos NA's
+           pre_race_rating_adjusted < 20 & between(preraceadjustedrating, 40, 200) ~ kerdos_rating_preds,
            TRUE ~ pre_race_rating_adjusted
          )
   ) %>%
@@ -311,8 +311,8 @@ pre_model_data <- gb_flat_all_cols %>%
   mutate(jockey_rating = ifelse(is.na(Rating_Jockey), Rating_Jockey_min, Rating_Jockey),
          jockey_rating_na=as.factor(ifelse(is.na(Rating_Jockey), 1, 0))) %>%
   # join flucs data
-  left_join(., flucs_data_csv %>% 
-              select(raceid, horsecode, bsp_60, bsp_10, bsp_5) %>%
+  left_join(., flucs_data %>% 
+              select(-scheduledtimeofracegmt) %>%
               mutate(horsecode=nm(horsecode)), by=c('raceid', 'horsecode')) %>% 
   # join class data
   left_join(., class_rankings, by='raceid') %>%
@@ -357,10 +357,15 @@ trainer_nas <- jockey_trainer_dat %>%
   summarise(across(Rating_Trainer, ~sum(is.na(.x))),.groups = "drop_last") %>%
   rename(trainer_rating_nas=Rating_Trainer)
 
-flucs_nas <- pre_model_data %>% 
+bf_nas <- pre_model_data %>% 
   filter(is.na(bsp_60)) %>% 
   select(raceid, meetingdate, starts_with('bsp_')) %>%
   pull(raceid) %>% unique()
+
+sb_nas <- pre_model_data %>% 
+  filter(is.na(sb_m)) %>% 
+  select(raceid, meetingdate, coursename, sb_m) %>%
+  unique()
 
 class_nas <- pre_model_data %>% filter(is.na(category_rank))
 

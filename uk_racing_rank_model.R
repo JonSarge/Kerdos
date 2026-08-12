@@ -3,6 +3,19 @@
 ###############################################################################
 library(xgboost)
 
+# Recipe for preprocessing
+recipe_ml <- recipe(model_formula, data = train_data) %>%
+  # Create dummy variables
+  step_dummy(all_nominal_predictors(), one_hot = TRUE) %>%
+  # Remove zero variance predictors
+  step_zv(all_predictors()) %>%
+  # Normalize numeric predictors
+  step_normalize(all_numeric_predictors()) %>%
+  # Remove highly correlated predictors
+  step_corr(all_numeric_predictors(), threshold = 0.9)  %>%
+  # SMOTE on Win and Place classes
+  step_smote(target_var, over_ratio = 0.5, skip = TRUE) 
+
 # --- Prep features using the SAME recipe (no SMOTE, since ranking doesn't
 # use a binary label the way SMOTE assumes -- relevance labels below instead) ---
 recipe_prep <- recipe_ml %>% 
@@ -14,7 +27,8 @@ recipe_rank <- recipe(model_formula, data = train_data) %>%
   step_dummy(all_nominal_predictors(), one_hot = TRUE) %>%
   step_zv(all_predictors()) %>%
   step_normalize(all_numeric_predictors()) %>%
-  step_corr(all_numeric_predictors(), threshold = 0.9)
+  step_corr(all_numeric_predictors(), threshold = 0.9) %>%
+  step_smote(target_var, over_ratio = 0.5, skip = TRUE) 
 
 prepped <- prep(recipe_rank, training = train_data)
 
@@ -113,3 +127,60 @@ rank_probs_df <- tibble(
 # join back to the ORIGINAL test_data by .row_id -- safe regardless of any sorting
 test_data_with_rank <- test_data %>%
   left_join(rank_probs_df, by = ".row_id")
+
+test_rank_pnl_dat <- test_data_with_rank %>%
+  group_by(raceid) %>%
+  mutate(
+    winprob_adj=winprob/sum(winprob),
+    winprob_rank=dense_rank(-winprob_adj),
+    win=ifelse(positionofficial==1, 1, 0),
+    win=ifelse(sum(win)==2 & win==1, 0.5, win) # dead-heat adj
+  ) %>% ungroup() %>%
+  mutate(bsp_bin=gsub('0-2.5', '1.01-2.5', bsp_bin),
+         bsp_index_all=1,
+         pick=ifelse(winprob_rank %in% c(1:1), 1, 0),
+         winprice=1/winprob_adj, # model price
+         ave_win_bsp=ifelse(win==1, betfairwinsp, NA),
+         profit=win*betfairwinsp-1,
+         bf_prob = 1/(betfairwinsp),
+         exp_value = (betfairwinsp - winprice)/winprice,
+         conf_level = winprob_adj - bf_prob
+  )
+
+
+# pnl summary table
+print(test_rank_pnl_dat %>%
+    filter(pick==1,
+           exp_value > 0, 
+           conf_level > 0,
+           winprob_adj > 0.1,
+    ) %>%
+    group_by(bsp_index_all) %>% # bsp_index, bsp_bin
+    summarise(bets=sum(pick), 
+              sr=mean(win),  
+              ave_win_price=mean(na.omit(ave_win_bsp)),
+              profit=sum(profit), 
+              roi=sum(profit)/sum(pick)) )
+
+# pnl summary table
+print(test_rank_pnl_dat %>%
+        filter(pick==1,
+               exp_value > 0, 
+               conf_level > 0,
+               winprob_adj > 0.1,
+        ) %>%
+        group_by(bsp_index, bsp_bin) %>% # bsp_index, bsp_bin
+        summarise(bets=sum(pick), 
+                  sr=mean(win),  
+                  ave_win_price=mean(na.omit(ave_win_bsp)),
+                  profit=sum(profit), 
+                  roi=sum(profit)/sum(pick)) )
+
+library(vip)
+
+vip(rank_model, num_features = 20)
+
+# or explicitly specify importance type (gain is the default and most comparable
+# to your earlier parsnip/bonsai plots)
+vip(rank_model, num_features = 20, type = "gain")
+

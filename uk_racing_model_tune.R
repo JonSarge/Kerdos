@@ -130,9 +130,9 @@
     # Normalize numeric predictors
     step_normalize(all_numeric_predictors()) %>%
     # Remove highly correlated predictors
-    step_corr(all_numeric_predictors(), threshold = 0.9) %>%
+    step_corr(all_numeric_predictors(), threshold = 0.9)  %>%
     # SMOTE on Win and Place classes
-    step_smote(target_var, over_ratio = 0.5, skip = TRUE) # %>%
+    step_smote(target_var, over_ratio = 0.5, skip = TRUE) 
   # interaction terms
   #step_interact(terms = ~ bsp_prob:kerdos_rating) 
   
@@ -157,14 +157,15 @@
     ungroup()
   
   
-  
-  
   print(paste0('test_perc_split = ', round(nrow(test_data)/nrow(train_data)*100, 1),'%'))
   
   
   if(tuneModels == 1) {
     
     print('=== TUNING MODE ===')
+    
+    pos_weight <- sum(train_data[[target_var]] == "Not_Win") / sum(train_data[[target_var]] == "Win")
+    print(paste("scale_pos_weight:", round(pos_weight, 2)))
     
     tune_spec <- boost_tree(
       trees          = tune(),
@@ -174,7 +175,7 @@
       loss_reduction = tune()
     ) %>%
       set_mode('classification') %>%
-      set_engine(tree_model, verbose = 1)
+      set_engine(tree_model, verbose = 1) # , scale_pos_weight = pos_weight
     
     tree_grid <- expand.grid(
       trees          = trees,

@@ -51,38 +51,55 @@ model_vars = c(
   'kerdos_rating',
   'kerdos_rating_rank',
   'fave_price',
-  #'bsp_prob',
-  'bsp_prob_60',
-  #'bsp_prob_60_10',
-  #'bsp_prob_60_5',
-  #'bsp_prob_60_0',
-  #'bsp_prob_10_5',
-  #'bsp_prob_10_0',
-  #'bsp_prob_5_0',
-  #'bsp_rank',
   'category_rank',
   'category_blended_score',
-  'draw_relative',
-  'distance_m',
-  'weightcarried', # weight_relative
+   'draw_relative',
+   'distance_m',
+   'weightcarried', # weight_relative
   'horseage',
-  'daysoff'
+   'daysoff',
+  #'bsp_rank',
+  #'bsp_prob',
+  #'bsp_prob_60',
+  #'bsp_prob_10',  
+  #'bsp_prob_5',
+  'bf_prob_60_10',
+  # 'bsp_prob_60_5',
+  # 'bsp_prob_60_0'
+  #'bsp_prob_10_5',
+  #'bsp_prob_10_0'
+  #'bsp_prob_5_0',
+  # 'bsp_logit_60',
+  # 'bsp_logit_10',
+  # 'bsp_logit_5',
+  # 'bsp_logit_0',
+  # 'bsp_ratio_60_10',
+  # 'bsp_ratio_60_5',
+  # 'bsp_ratio_60_0',
+  # 'bsp_pct_60_10'
+  # 'bsp_rate_60_10',
+  # 'bsp_rate_10_5',
+  # 'bsp_rate_5_0',
+  # 'bsp_accel_late',
+  # 'bsp_accel_mid',
+  # 'monotonic_steam',
+  # 'monotonic_drift',
+  # 'reversal'
   #'jockey_rating',
   #'trainer_rating',
-  #''raceclass', 
   #'jockeyinform',
   #'hottrainer',
   #'toprated',
   #'ratingstars',
-  #'field_size',
+  'field_size',
   #'bharating',
   #'rating0to100',
   #'rating123',
   #'tissuepricedecimal',
   #'significantimprover',
-  #'goingabbrev',
+  'goingabbrev',
   #'iphintsoverallpace',
-  #'pace_pred'
+  'pace_pred'
 )
 
 # tf rating na races
@@ -92,6 +109,8 @@ tf_rating_nas <- pre_model_data %>%
   filter(!complete.cases(.)) %>%
   pull(raceid) %>% unique()
 
+logit <- function(p) log(p / (1 - p))
+
 # modelling df w. final filters    
 model_data <- pre_model_data %>%  
   filter(!raceid %in% ratings_remove$raceid, # CHECK THESE TO ADD BACK IN!!!
@@ -99,24 +118,45 @@ model_data <- pre_model_data %>%
          racesurfacename == 'Turf',
          raceclass %in% c(2:6),
          !racecode %in% c('S', 'W', 'GA', 'IM'),
-         #!raceid %in% tf_rating_nas,
-         #!raceid %in% jockey_nas$raceid
-         #!is.na(pace_pred) # FIX THIS!!!
+         !raceid %in% tf_rating_nas,
+         #!raceid %in% jockey_nas$raceid,
+         !is.na(pace_pred) # FIX THIS!!!
   ) %>% 
   group_by(raceid) %>% # add this to pre_model_dat
   mutate(jockey_rating = nm(scale(jockey_rating))) %>%
   ungroup() %>%
-  mutate(bsp_prob_60 = 1/bsp_60,
-         bsp_prob_10 = 1/bsp_10,
-         bsp_prob_5 = 1/bsp_5,
-         bsp_prob_60_10 = bsp_prob_10 - bsp_prob_60,
-         bsp_prob_60_5 = bsp_prob_5 - bsp_prob_60,
-         bsp_prob_60_0 = bsp_prob - bsp_prob_60,
-         bsp_prob_10_5 = bsp_prob_5 - bsp_prob_10,
-         bsp_prob_10_0 = bsp_prob - bsp_prob_10,
-         bsp_prob_5_0 = bsp_prob - bsp_prob_5
+  mutate(bf_prob_60 = 1/bsp_60,
+         bf_prob_10 = 1/bsp_10,
+         bf_prob_5 = 1/bsp_5,
+         bf_prob_60_10 = bf_prob_10 - bf_prob_60,
+         # bsp_prob_60_5 = bsp_prob_5 - bsp_prob_60,
+         # bsp_prob_60_0 = bsp_prob - bsp_prob_60,
+         # bsp_prob_10_5 = bsp_prob_5 - bsp_prob_10,
+         # bsp_prob_10_0 = bsp_prob - bsp_prob_10,
+         # bsp_prob_5_0 = bsp_prob - bsp_prob_5,
+          bf_logit_60 = logit(bf_prob_60),
+          bf_logit_10 = logit(bf_prob_10),
+         # bsp_logit_5  = logit(bsp_prob_5),
+         # bsp_logit_0  = logit(bsp_prob),
+          bf_logit_60_10 = bf_logit_10 - bf_logit_60,
+         # bsp_logit_60_5  = bsp_logit_5  - bsp_logit_60,
+         # bsp_logit_60_0  = bsp_logit_0  - bsp_logit_60,
+         # bsp_ratio_60_10 = bf_prob_10 / bf_prob_60,
+         # bsp_ratio_60_5  = bsp_prob_5  / bsp_prob_60,
+         # bsp_ratio_60_0  = bsp_prob   / bsp_prob_60,
+         # bsp_pct_60_10   = (bsp_prob_10 - bsp_prob_60) / bsp_prob_60,
+          bf_rate_60_10 = bf_prob_60_10 / 50,
+         # bsp_rate_10_5  = bsp_prob_10_5 / 5,
+         # bsp_rate_5_0   = bsp_prob_5_0 / 5,
+         # bsp_accel_late = bsp_rate_5_0 - bsp_rate_10_5,
+         # bsp_accel_mid  = bsp_rate_10_5 - bsp_rate_60_10,
+         # monotonic_steam = as.integer(bsp_prob_60_10 > 0 & bsp_prob_10_5 > 0 & bsp_prob_5_0 > 0),
+         # monotonic_drift = as.integer(bsp_prob_60_10 < 0 & bsp_prob_10_5 < 0 & bsp_prob_5_0 < 0),
+         # reversal = as.integer(sign(bsp_prob_10_5) != sign(bsp_prob_5_0)),
+         #bf_prob_10_run1_fluc = (bsp_prob_10 - run1_bsp_prob)/run1_bsp_prob,
+         #bsp_prob_60_run1_fluc = ifelse(is.na(bsp_prob_60_run1_fluc), 0, bsp_prob_60_run1_fluc)
          ) %>%
-  filter(!is.na(bsp_prob_60))
+  filter(!is.na(bf_prob_60))
 
 
 # check ratings correlate
@@ -145,20 +185,20 @@ test_date_end = '2026-12-31'
 train_data <- model_data %>% 
   filter(meetingdate >= train_date_start,
          meetingdate < test_date_start,
-         #between(betfairwinsp, 1.1, 50)
+         #between(betfairwinsp, 1.2, 50)
          ) %>%
   select(raceid, meetingdate, all_of(model_vars), all_of(target_var)) # final select
 
 # final check for training data na's
 train_data_nas <- train_data %>% filter(!complete.cases(.))
 
+test_data <- model_data %>% 
+  filter(meetingdate >= test_date_start,
+         meetingdate <= test_date_end,
+  ) 
+
 
 #### tune xgboost model ####
-
-# tuning
-tuneModels = 1
-randomGrid = 1
-randomGridSize = 10 
 
 # Create tuning grid with specified values
 trees = 500 # specify n trees sequence
@@ -166,17 +206,27 @@ min_n = 10 # specify minimum tree n sequenc
 tree_depth = 3
 learn_rate = 0.1
 loss_reduction = 0.01
+
+source('uk_racing_rank_model.R') # rank model
+
+# tuning
+tuneModels = 1
+randomGrid = 1
+randomGridSize = 10 
 setSeed=0
-source('uk_racing_model_tune.R') # tuning script
+source('uk_racing_model_tune.R') # xbg tuning script
 
 #### generate results  PnL ####
 
-test_pnl_dat <- pnl_df(c(1:1)) %>%
+
+test_pnl_dat <- pnl_df(c(1:5)) %>%
   select(all_of(race_vars), month, all_of(model_vars), c(win:conf_level), 
          Rating_Jockey, Rating_Trainer, -winclass) %>%
   relocate(starts_with('betfairwin'), .before=winprob) %>%
   rename(surface=racesurfacename) %>%
-  filter(betfairwinsp <= 100)
+  filter(betfairwinsp <= 100,
+         # bsp_prob > bsp_prob_60
+         )
 
 
 # final check for training data na's

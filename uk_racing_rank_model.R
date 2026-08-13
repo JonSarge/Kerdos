@@ -182,5 +182,5 @@ vip(rank_model, num_features = 20)
 
 # or explicitly specify importance type (gain is the default and most comparable
 # to your earlier parsnip/bonsai plots)
-vip(rank_model, num_features = 20, type = "gain")
+print(vip(rank_model, num_features = 20, type = "gain"))
 

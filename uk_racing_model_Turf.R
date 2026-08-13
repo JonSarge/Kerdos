@@ -12,7 +12,6 @@
 #
 # To Do:
 #  - jockey/trainer ratings
-#  - daily price fllucs
 #
 #################################################
 
@@ -58,6 +57,7 @@ model_vars = c(
    'weightcarried', # weight_relative
   'horseage',
    'daysoff',
+  'horsegender',
   #'bsp_rank',
   #'bsp_prob',
   #'bsp_prob_60',

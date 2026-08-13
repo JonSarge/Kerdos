@@ -60,11 +60,11 @@ model_vars = c(
   'horsegender',
   #'bsp_rank',
   #'bsp_prob',
-  'bf_prob_60',
+  #'bf_prob_60',
   # 'bf_prob_10',  
   #'bsp_prob_5',
   #'bf_prob_60_10',
-   'bf_prob_60_5',
+   'bf_prob_60_10',
   # 'bsp_prob_60_0'
   #'bsp_prob_10_5',
   #'bsp_prob_10_0'

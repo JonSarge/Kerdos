@@ -125,26 +125,43 @@ rank_probs_df <- tibble(
   select(.row_id, winprob)
 
 # join back to the ORIGINAL test_data by .row_id -- safe regardless of any sorting
+
+# blend in logit/log-odds space, not raw probability space -- this is what
+# bookmakers/quant modelers actually do, since probabilities near 0/1 behave
+# badly under linear blending but log-odds blend sensibly
+logit <- function(p) log(p / (1 - p))
+inv_logit <- function(x) 1 / (1 + exp(-x))
+
+w <- 1  # weight on the model; (1-w) on market. Tune this via CV on top1_accuracy
+
 test_data_with_rank <- test_data %>%
-  left_join(rank_probs_df, by = ".row_id")
+  left_join(rank_probs_df, by = ".row_id") %>%
+  mutate(
+    market_prob = 1 / betfairwinsp,       # or bsp_prob_60 if you want T-60 market view
+    blended_logit = w * logit(winprob) + (1 - w) * logit(market_prob),
+    winprob_blended = inv_logit(blended_logit)
+  ) %>%
+  group_by(raceid) %>%
+  mutate(winprob_blended_adj = winprob_blended / sum(winprob_blended)) %>%
+  ungroup()
 
 test_rank_pnl_dat <- test_data_with_rank %>%
   group_by(raceid) %>%
   mutate(
-    winprob_adj=winprob/sum(winprob),
-    winprob_rank=dense_rank(-winprob_adj),
+    #winprob_adj=winprob/sum(winprob),
+    winprob_rank=dense_rank(-winprob_blended_adj),
     win=ifelse(positionofficial==1, 1, 0),
     win=ifelse(sum(win)==2 & win==1, 0.5, win) # dead-heat adj
   ) %>% ungroup() %>%
   mutate(bsp_bin=gsub('0-2.5', '1.01-2.5', bsp_bin),
          bsp_index_all=1,
          pick=ifelse(winprob_rank %in% c(1:1), 1, 0),
-         winprice=1/winprob_adj, # model price
+         winprice=1/winprob_blended_adj, # model price
          ave_win_bsp=ifelse(win==1, betfairwinsp, NA),
          profit=win*betfairwinsp-1,
          bf_prob = 1/(betfairwinsp),
          exp_value = (betfairwinsp - winprice)/winprice,
-         conf_level = winprob_adj - bf_prob
+         conf_level = winprob_blended_adj - bf_prob
   )
 
 
@@ -153,7 +170,7 @@ print(test_rank_pnl_dat %>%
     filter(pick==1,
            exp_value > 0, 
            conf_level > 0,
-           winprob_adj > 0.1,
+           winprob_blended_adj > 0,
     ) %>%
     group_by(bsp_index_all) %>% # bsp_index, bsp_bin
     summarise(bets=sum(pick), 
@@ -167,7 +184,7 @@ print(test_rank_pnl_dat %>%
         filter(pick==1,
                exp_value > 0, 
                conf_level > 0,
-               winprob_adj > 0.1,
+               winprob_blended_adj > 0.1,
         ) %>%
         group_by(bsp_index, bsp_bin) %>% # bsp_index, bsp_bin
         summarise(bets=sum(pick), 

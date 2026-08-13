@@ -186,7 +186,6 @@ gb_flat_all_cols <- gb_racing_sql %>%
          #bsp_logit = log(bsp_prob / (1 - bsp_prob)),
          #bsp_logit_damped = bsp_logit * 0.3,     # scale factor controls strength
          #bsp_prob = plogis(bsp_logit_damped),
-
          run1_bsp_prob=1/run1_betfairwinsp,
          # bsp run1 to run0 bsp fluc
          run1_betfairwinsp = ifelse(is.na(run1_betfairwinsp)|run1_betfairwinsp==0, betfairwinsp, run1_betfairwinsp),

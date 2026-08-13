@@ -46,58 +46,33 @@ target_var = ifelse(modelType == 'binary', 'finish_group_binary', 'finish_group'
 
 # Predict finish position using tidymodels
 model_vars = c(
-  'bsp_prob_run1_fluc',
+  'bf_prob_10_run1_fluc',
   'kerdos_rating',
   'kerdos_rating_rank',
   'fave_price',
   'category_rank',
   'category_blended_score',
-   'draw_relative',
-   'distance_m',
-   'weightcarried', # weight_relative
+  'draw_relative',
+  'distance_m',
+  'weightcarried', # weight_relative
   'horseage',
-   'daysoff',
-  'horsegender',
-  #'bsp_rank',
-  #'bsp_prob',
-  #'bf_prob_60',
-  # 'bf_prob_10',  
-  #'bsp_prob_5',
+  'daysoff',
+  #'horsegender',
+  'bf_prob_60',
   #'bf_prob_60_10',
-   'bf_prob_60_10',
-  # 'bsp_prob_60_0'
-  #'bsp_prob_10_5',
-  #'bsp_prob_10_0'
-  #'bsp_prob_5_0',
-  # 'bsp_logit_60',
-  # 'bsp_logit_10',
-  # 'bsp_logit_5',
-  # 'bsp_logit_0',
-  # 'bsp_ratio_60_10',
-  # 'bsp_ratio_60_5',
-  # 'bsp_ratio_60_0',
-  # 'bsp_pct_60_10'
-  # 'bsp_rate_60_10',
-  # 'bsp_rate_10_5',
-  # 'bsp_rate_5_0',
-  # 'bsp_accel_late',
-  # 'bsp_accel_mid',
-  # 'monotonic_steam',
-  # 'monotonic_drift',
-  # 'reversal'
   #'jockey_rating',
   #'trainer_rating',
   #'jockeyinform',
   #'hottrainer',
   #'toprated',
   #'ratingstars',
-  'field_size',
+  #'field_size',
   #'bharating',
   #'rating0to100',
   #'rating123',
   #'tissuepricedecimal',
   #'significantimprover',
-  'goingabbrev',
+  #'goingabbrev',
   #'iphintsoverallpace',
   'pace_pred'
 )
@@ -123,41 +98,19 @@ model_data <- pre_model_data %>%
          !is.na(pace_pred) # FIX THIS!!!
   ) %>% 
   group_by(raceid) %>% # add this to pre_model_dat
-  mutate(jockey_rating = nm(scale(jockey_rating))) %>%
+  mutate(jockey_rating = nm(scale(jockey_rating)),
+         bf_60_rank=rank(-bsp_60, ties.method="min")/numberofrunners) %>%
   ungroup() %>%
   mutate(bf_prob_60 = 1/bsp_60,
          bf_prob_10 = 1/bsp_10,
          bf_prob_5 = 1/bsp_5,
          bf_prob_60_10 = bf_prob_10 - bf_prob_60,
          bf_prob_60_5 = bf_prob_5 - bf_prob_60,
-         # bsp_prob_60_0 = bsp_prob - bsp_prob_60,
-         # bsp_prob_10_5 = bsp_prob_5 - bsp_prob_10,
-         # bsp_prob_10_0 = bsp_prob - bsp_prob_10,
-         # bsp_prob_5_0 = bsp_prob - bsp_prob_5,
-          bf_logit_60 = logit(bf_prob_60),
-          bf_logit_10 = logit(bf_prob_10),
-         # bsp_logit_5  = logit(bsp_prob_5),
-         # bsp_logit_0  = logit(bsp_prob),
-          bf_logit_60_10 = bf_logit_10 - bf_logit_60,
-         # bsp_logit_60_5  = bsp_logit_5  - bsp_logit_60,
-         # bsp_logit_60_0  = bsp_logit_0  - bsp_logit_60,
-         # bsp_ratio_60_10 = bf_prob_10 / bf_prob_60,
-         # bsp_ratio_60_5  = bsp_prob_5  / bsp_prob_60,
-         # bsp_ratio_60_0  = bsp_prob   / bsp_prob_60,
-         # bsp_pct_60_10   = (bsp_prob_10 - bsp_prob_60) / bsp_prob_60,
-          bf_rate_60_10 = bf_prob_60_10 / 50,
-         # bsp_rate_10_5  = bsp_prob_10_5 / 5,
-         # bsp_rate_5_0   = bsp_prob_5_0 / 5,
-         # bsp_accel_late = bsp_rate_5_0 - bsp_rate_10_5,
-         # bsp_accel_mid  = bsp_rate_10_5 - bsp_rate_60_10,
-         # monotonic_steam = as.integer(bsp_prob_60_10 > 0 & bsp_prob_10_5 > 0 & bsp_prob_5_0 > 0),
-         # monotonic_drift = as.integer(bsp_prob_60_10 < 0 & bsp_prob_10_5 < 0 & bsp_prob_5_0 < 0),
-         # reversal = as.integer(sign(bsp_prob_10_5) != sign(bsp_prob_5_0)),
-         #bf_prob_10_run1_fluc = (bsp_prob_10 - run1_bsp_prob)/run1_bsp_prob,
-         #bsp_prob_60_run1_fluc = ifelse(is.na(bsp_prob_60_run1_fluc), 0, bsp_prob_60_run1_fluc)
+         bf_prob_10_run1_fluc = (bf_prob_10 - run1_bsp_prob)/run1_bsp_prob,
+         bf_prob_10_run1_fluc = ifelse(is.na(bf_prob_10_run1_fluc), 0, bf_prob_10_run1_fluc),
+         #bf_prob_60_damped=bsp_prob^0.1,
          ) %>%
   filter(!is.na(bf_prob_60))
-
 
 # check ratings correlate
 hist_data <- model_data %>% filter(!preraceadjustedrating %in% c(0,999))
@@ -200,24 +153,22 @@ test_data <- model_data %>%
 
 #### tune xgboost model ####
 
+# tuning
+tuneModels = 1
+randomGrid = 1
+randomGridSize = 10 
+
 # Create tuning grid with specified values
 trees = 500 # specify n trees sequence
 min_n = 10 # specify minimum tree n sequenc
 tree_depth = 3
 learn_rate = 0.1
 loss_reduction = 0.01
-
-source('uk_racing_rank_model.R') # rank model
-
-# tuning
-tuneModels = 1
-randomGrid = 1
-randomGridSize = 10 
 setSeed=0
 source('uk_racing_model_tune.R') # xbg tuning script
 
-#### generate results  PnL ####
 
+#### generate results  PnL ####
 
 test_pnl_dat <- pnl_df(c(1:5)) %>%
   select(all_of(race_vars), month, all_of(model_vars), c(win:conf_level), 

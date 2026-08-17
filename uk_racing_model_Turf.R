@@ -54,14 +54,16 @@ model_vars = c(
   'distance_m',
   'weightcarried', # weight_relative
   'horseage',
-  #'horsegender',
+  'horsegender',
   'daysoff',
-  'bf_prob_10_run1_fluc',
+  'bf_prob_run1_5_fluc',
   'bf_prob_60',
+  #'bf_60_rank',
   'bf_prob_60_5',
-  'raceclass',
-  'pace_pred',
-  'field_size'
+  #'raceclass',
+  'pace_pred'
+  #'field_size'
+  #'goingabbrev'
   #'jockey_rating',
   #'trainer_rating',
   #'jockeyinform',
@@ -73,7 +75,6 @@ model_vars = c(
   #'rating123',
   #'tissuepricedecimal',
   #'significantimprover',
-  #'goingabbrev',
   #'iphintsoverallpace',
   )
 
@@ -99,17 +100,14 @@ model_data <- pre_model_data %>%
   ) %>% 
   group_by(raceid) %>% # add this to pre_model_dat
   mutate(jockey_rating = nm(scale(jockey_rating)),
-         bf_60_rank=rank(-bsp_60, ties.method="min")/numberofrunners) %>%
-  ungroup() %>%
+         bf_60_rank=rank(-bsp_60, ties.method="min")/numberofrunners) %>% ungroup() %>%
   mutate(bf_prob_60 = 1/bsp_60,
          bf_prob_10 = 1/bsp_10,
          bf_prob_5 = 1/bsp_5,
          bf_prob_60_10 = bf_prob_10 - bf_prob_60,
          bf_prob_60_5 = bf_prob_5 - bf_prob_60,
-         bf_prob_10_run1_fluc = (bf_prob_10 - run1_bsp_prob)/run1_bsp_prob,
-         bf_prob_10_run1_fluc = ifelse(is.na(bf_prob_10_run1_fluc), 0, bf_prob_10_run1_fluc),
-         #bf_prob_60_damped=bsp_prob^0.1,
-         #draw=nm(draw)
+         bf_prob_run1_5_fluc = (bf_prob_5 - run1_bsp_prob)/run1_bsp_prob,
+         bf_prob_run1_5_fluc = ifelse(is.na(bf_prob_run1_5_fluc), 0, bf_prob_run1_5_fluc),
          ) %>%
   filter(!is.na(bf_prob_60))
 
@@ -125,7 +123,6 @@ model_data_nas <- model_data %>%
 
 if(length(race_vars[race_vars %in% names(model_data_nas)])>0) "CHECK NAs IN RACE VARS!!!"
 if(length(model_vars[model_vars %in% names(model_data_nas)])>0) "CHECK NAs IN MODEL VARS!!!"
-
 
 # model formula
 model_formula = as.formula(paste(target_var, '~', paste(model_vars, collapse = " + ")))
@@ -146,10 +143,8 @@ train_data <- model_data %>%
 # final check for training data na's
 train_data_nas <- train_data %>% filter(!complete.cases(.))
 
-test_data <- model_data %>% 
-  filter(meetingdate >= test_date_start,
-         meetingdate <= test_date_end,
-  ) 
+# test data
+test_data <- model_data %>% filter(meetingdate >= test_date_start & meetingdate <= test_date_end)
 
 
 #### tune xgboost model ####
@@ -176,10 +171,9 @@ test_pnl_dat <- pnl_df(c(1:1)) %>%
          Rating_Jockey, Rating_Trainer, -winclass) %>%
   relocate(starts_with('betfairwin'), .before=winprob) %>%
   rename(surface=racesurfacename) %>%
-  filter(betfairwinsp <= 100,
-         bsp_prob > bf_prob_60,
-         )
-
+  filter(betfairwinsp <= 100, # bf_prob_5 > bf_prob_60,
+         ) %>%
+  mutate(bf_firm=ifelse(bf_prob_5 > bf_prob_60, 1, 0))
 
 # final check for training data na's
 test_data_nas <- test_pnl_dat %>% 
@@ -192,20 +186,35 @@ for(i in 1:length(conf_levels)){
   mins = c(0, conf_levels[i], 0.1) # exp val; conf level; winprob min
   print(cbind(pnl_table(test_pnl_dat, c( 'surface', 'bsp_index_all' ), mins[1], mins[2], mins[3]), conf=conf_levels[i]))
 }
-
 pnl_table(test_pnl_dat, c( 'surface', 'month' ), 0, 0.0, 0.1) # months
 pnl_table(test_pnl_dat, c( 'surface', 'bsp_index', 'bsp_bin' ), 0, 0.0, 0.1) # bsp bins
 pnl_table(test_pnl_dat, c( 'surface', 'winprob_rank' ), 0, 0, 0.1) # winprob rank
 pnl_table(test_pnl_dat, c( 'surface', 'raceclass' ), 0, 0, 0.1) # winprob rank
 pnl_table(test_pnl_dat, c( 'surface', 'racecode' ), 0, 0, 0.1) # winprob rank
 pnl_table(test_pnl_dat, c( 'surface', 'bsp_index_all' ), 0, 0, 0.1) # overall
+pnl_table(test_pnl_dat, c( 'surface', 'bf_firm' ), 0, 0, 0.1) # overall
 
 
 # check model v market
 market_model_df <- test_pnl_dat %>% 
   filter(betfairwinsp < 20) %>%
-  select(raceid, bsp_prob, winprob_adj, betfairwinsp, winprice)
+  select(raceid, bsp_prob, winprob_adj, betfairwinsp, winprice, positionofficial)
 plot(market_model_df$betfairwinsp, market_model_df$winprice)
+
+# check scratchings between 60 and 5
+scratchings_df <- gb_racing_sql %>%
+  # primary model filters
+  filter(countrycode=='GBR',
+         racetype=='Flat',
+         )%>%
+  left_join(., flucs_data %>% 
+              select(-scheduledtimeofracegmt) %>%
+              mutate(horsecode=nm(horsecode)), by=c('raceid', 'horsecode')) %>%
+  select(raceid, meetingdate=scheduledtimeofracegmt, coursename, horsecode, numberofrunners, 
+         bsp_60, bsp_10, bsp_5, bsp_0=betfairwinsp) %>%
+  group_by(raceid) %>%
+  mutate(runners=n()) %>% ungroup() %>%
+  filter(runners != numberofrunners)
 
 # export results
 write.csv(test_pnl_dat, paste0('test_pnl_Turf_',  Sys.Date(), '.csv') , row.names=F, na='')

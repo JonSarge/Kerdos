@@ -41,12 +41,10 @@ loadNewData = 0
 source('uk_racing_data.R')
 
 # declare target var
-modelType  = 'binary' # binary or 'multinomial' 
-target_var = ifelse(modelType == 'binary', 'finish_group_binary', 'finish_group')
+target_var = 'finish_group_binary' # 'binary', 'finish_group_binary', 'finish_group')
 
 # Predict finish position using tidymodels
 model_vars = c(
-  'bf_prob_10_run1_fluc',
   'kerdos_rating',
   'kerdos_rating_rank',
   'fave_price',
@@ -56,17 +54,20 @@ model_vars = c(
   'distance_m',
   'weightcarried', # weight_relative
   'horseage',
-  'daysoff',
   #'horsegender',
+  'daysoff',
+  'bf_prob_10_run1_fluc',
   'bf_prob_60',
-  #'bf_prob_60_10',
+  'bf_prob_60_5',
+  'raceclass',
+  'pace_pred',
+  'field_size'
   #'jockey_rating',
   #'trainer_rating',
   #'jockeyinform',
   #'hottrainer',
   #'toprated',
   #'ratingstars',
-  #'field_size',
   #'bharating',
   #'rating0to100',
   #'rating123',
@@ -74,8 +75,7 @@ model_vars = c(
   #'significantimprover',
   #'goingabbrev',
   #'iphintsoverallpace',
-  'pace_pred'
-)
+  )
 
 # tf rating na races
 tf_rating_nas <- pre_model_data %>% 
@@ -93,7 +93,7 @@ model_data <- pre_model_data %>%
          racesurfacename == 'Turf',
          raceclass %in% c(2:6),
          !racecode %in% c('S', 'W', 'GA', 'IM'),
-         !raceid %in% tf_rating_nas,
+         #!raceid %in% tf_rating_nas,
          #!raceid %in% jockey_nas$raceid,
          !is.na(pace_pred) # FIX THIS!!!
   ) %>% 
@@ -109,6 +109,7 @@ model_data <- pre_model_data %>%
          bf_prob_10_run1_fluc = (bf_prob_10 - run1_bsp_prob)/run1_bsp_prob,
          bf_prob_10_run1_fluc = ifelse(is.na(bf_prob_10_run1_fluc), 0, bf_prob_10_run1_fluc),
          #bf_prob_60_damped=bsp_prob^0.1,
+         #draw=nm(draw)
          ) %>%
   filter(!is.na(bf_prob_60))
 
@@ -138,7 +139,7 @@ test_date_end = '2026-12-31'
 train_data <- model_data %>% 
   filter(meetingdate >= train_date_start,
          meetingdate < test_date_start,
-         #between(betfairwinsp, 1.2, 50)
+         between(betfairwinsp, 1.2, 50)
          ) %>%
   select(raceid, meetingdate, all_of(model_vars), all_of(target_var)) # final select
 
@@ -170,13 +171,13 @@ source('uk_racing_model_tune.R') # xbg tuning script
 
 #### generate results  PnL ####
 
-test_pnl_dat <- pnl_df(c(1:5)) %>%
+test_pnl_dat <- pnl_df(c(1:1)) %>%
   select(all_of(race_vars), month, all_of(model_vars), c(win:conf_level), 
          Rating_Jockey, Rating_Trainer, -winclass) %>%
   relocate(starts_with('betfairwin'), .before=winprob) %>%
   rename(surface=racesurfacename) %>%
   filter(betfairwinsp <= 100,
-         # bsp_prob > bsp_prob_60
+         bsp_prob > bf_prob_60,
          )
 
 
@@ -191,13 +192,13 @@ for(i in 1:length(conf_levels)){
   mins = c(0, conf_levels[i], 0.1) # exp val; conf level; winprob min
   print(cbind(pnl_table(test_pnl_dat, c( 'surface', 'bsp_index_all' ), mins[1], mins[2], mins[3]), conf=conf_levels[i]))
 }
+
 pnl_table(test_pnl_dat, c( 'surface', 'month' ), 0, 0.0, 0.1) # months
 pnl_table(test_pnl_dat, c( 'surface', 'bsp_index', 'bsp_bin' ), 0, 0.0, 0.1) # bsp bins
-pnl_table(test_pnl_dat, c( 'surface', 'bsp_index_all' ), 0, 0, 0.1) # overall
 pnl_table(test_pnl_dat, c( 'surface', 'winprob_rank' ), 0, 0, 0.1) # winprob rank
 pnl_table(test_pnl_dat, c( 'surface', 'raceclass' ), 0, 0, 0.1) # winprob rank
 pnl_table(test_pnl_dat, c( 'surface', 'racecode' ), 0, 0, 0.1) # winprob rank
-
+pnl_table(test_pnl_dat, c( 'surface', 'bsp_index_all' ), 0, 0, 0.1) # overall
 
 
 # check model v market

@@ -125,6 +125,8 @@
   recipe_ml <- recipe(model_formula, data = train_data) %>%
     # Create dummy variables
     step_dummy(all_nominal_predictors(), one_hot = TRUE) %>%
+    # interaction terms
+    #step_interact(terms = ~ draw_relative:distance_m) %>%
     # Remove zero variance predictors
     step_zv(all_predictors()) %>%
     # Normalize numeric predictors
@@ -133,8 +135,8 @@
     step_corr(all_numeric_predictors(), threshold = 0.9)  %>%
     # SMOTE on Win and Place classes
     step_smote(target_var, over_ratio = 0.5, skip = TRUE) 
-  # interaction terms
-  #step_interact(terms = ~ bsp_prob:kerdos_rating) 
+
+
   
   # predictors
   predictors = summary(recipe_ml)

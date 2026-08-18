@@ -58,11 +58,11 @@ model_vars = c(
   'daysoff',
   'bf_prob_run1_5_fluc',
   'bf_prob_60',
-  #'bf_60_rank',
+  'bf_60_rank',
   'bf_prob_60_5',
-  #'raceclass',
-  'pace_pred'
-  #'field_size'
+  'raceclass',
+  'pace_pred',
+  'field_size'
   #'goingabbrev'
   #'jockey_rating',
   #'trainer_rating',
@@ -92,7 +92,7 @@ model_data <- pre_model_data %>%
   filter(!raceid %in% ratings_remove$raceid, # CHECK THESE TO ADD BACK IN!!!
          !(preraceadjustedrating >= 70 & kerdos_rating < 30), # fix this in racing data script
          racesurfacename == 'Turf',
-         raceclass %in% c(2:6),
+         raceclass %in% c(2:4),
          !racecode %in% c('S', 'W', 'GA', 'IM'),
          #!raceid %in% tf_rating_nas,
          #!raceid %in% jockey_nas$raceid,
@@ -136,7 +136,7 @@ test_date_end = '2026-12-31'
 train_data <- model_data %>% 
   filter(meetingdate >= train_date_start,
          meetingdate < test_date_start,
-         between(betfairwinsp, 1.2, 50)
+         between(betfairwinsp, 1.2, 99)
          ) %>%
   select(raceid, meetingdate, all_of(model_vars), all_of(target_var)) # final select
 
@@ -160,7 +160,7 @@ min_n = 10 # specify minimum tree n sequenc
 tree_depth = 3
 learn_rate = 0.1
 loss_reduction = 0.01
-setSeed=0
+setSeed=1
 source('uk_racing_model_tune.R') # xbg tuning script
 
 
@@ -168,7 +168,7 @@ source('uk_racing_model_tune.R') # xbg tuning script
 
 test_pnl_dat <- pnl_df(c(1:1)) %>%
   select(all_of(race_vars), month, all_of(model_vars), c(win:conf_level), 
-         Rating_Jockey, Rating_Trainer, -winclass) %>%
+         Rating_Jockey, Rating_Trainer, -winclass, goingabbrev) %>%
   relocate(starts_with('betfairwin'), .before=winprob) %>%
   rename(surface=racesurfacename) %>%
   filter(betfairwinsp <= 100, # bf_prob_5 > bf_prob_60,

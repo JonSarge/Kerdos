@@ -86,6 +86,9 @@ jockey_rating_mins <- jockey_ratings %>%
 # load flucs data
 load("kerdos_flucs_data.rda")
 
+# load SB data
+bookies_prices <- read.csv('sb_output.csv')
+
 
 # get GB Flat Races - bind all years here!
 gb_flat_all_cols <- gb_racing_sql %>%
@@ -277,6 +280,7 @@ print(zero_cols)
 
 kerdos_rating_preds = predict(kerdos_est_model, gb_flat_all_cols)
 
+
 # generate pre-model df with ratings adj's
 pre_model_data <- gb_flat_all_cols %>%
   # barrier pos e.g. 1_3 = inside, 10+ = wide etc
@@ -313,6 +317,11 @@ pre_model_data <- gb_flat_all_cols %>%
   left_join(., flucs_data %>% 
               select(-scheduledtimeofracegmt) %>%
               mutate(horsecode=nm(horsecode)), by=c('raceid', 'horsecode')) %>% 
+  # join bookies data
+  left_join(., bookies_prices %>% select(-c(meetingdate, coursename)), 
+            by=c('raceid', 'horsecode'), suffix=c('_1', '_2')) %>%
+  mutate(sb_o = coalesce(sb_o_2, sb_o_1),
+         sb_m = coalesce(sb_m_2, sb_m_1)) %>%
   # join class data
   left_join(., class_rankings, by='raceid') %>%
   arrange(scheduledtimeofracegmt, saddlecloth)
@@ -361,10 +370,23 @@ bf_nas <- pre_model_data %>%
   select(raceid, meetingdate, starts_with('bsp_')) %>%
   pull(raceid) %>% unique()
 
-sb_nas <- pre_model_data %>% 
-  filter(is.na(sb_m)) %>% 
-  select(raceid, meetingdate, coursename, sb_m) %>%
+
+sb_data <- pre_model_data %>% 
+  mutate(positionofficial=nm(ch(positionofficial)),
+         sb_o = coalesce(sb_o_2, sb_o_1),
+         sb_m = coalesce(sb_m_2, sb_m_1)) %>%
+  #filter(is.na(sb_m)) %>% 
+  select(raceid, meetingdate, coursename, saddlecloth, numberofrunners, positionofficial, 
+         sb_o, sb_m, bf_60=bsp_60, bf_10=bsp_10, bf_5=bsp_5, bf_0=betfairwinsp) %>%
   unique()
+
+sb_scratchings <- sb_data %>% 
+  group_by(raceid) %>% 
+  filter(sum(is.na(bf_60)) < numberofrunners) %>%
+  mutate(scratchings = sum(is.na(positionofficial) | positionofficial == 0)) %>% ungroup() %>% 
+  relocate(scratchings, .after=numberofrunners) %>% 
+  filter(scratchings>=4 & numberofrunners > scratchings) %>% 
+  arrange(raceid, positionofficial)
 
 class_nas <- pre_model_data %>% filter(is.na(category_rank))
 

@@ -45,7 +45,7 @@ target_var = 'finish_group_binary' # 'binary', 'finish_group_binary', 'finish_gr
 
 # Predict finish position using tidymodels
 model_vars = c(
-  'kerdos_rating',
+  #'kerdos_rating',
   'kerdos_rating_rank',
   'fave_price',
   'category_rank',
@@ -54,12 +54,13 @@ model_vars = c(
   'distance_m',
   'weightcarried', # weight_relative
   'horseage',
-  'horsegender',
+  #'horsegender',
   'daysoff',
-  'bf_prob_run1_5_fluc',
+  #'bf_prob_run1_10_fluc',
   'bf_prob_60',
-  #'bf_60_rank',
-  'bf_prob_60_5',
+  'bf_60_rank',
+  #'bf_prob_60_10',
+  #'sb_m',
   #'raceclass',
   'pace_pred'
   #'field_size'
@@ -92,11 +93,12 @@ model_data <- pre_model_data %>%
   filter(!raceid %in% ratings_remove$raceid, # CHECK THESE TO ADD BACK IN!!!
          !(preraceadjustedrating >= 70 & kerdos_rating < 30), # fix this in racing data script
          racesurfacename == 'Turf',
-         raceclass %in% c(2:6),
+         raceclass %in% c(2:4),
          !racecode %in% c('S', 'W', 'GA', 'IM'),
-         #!raceid %in% tf_rating_nas,
-         #!raceid %in% jockey_nas$raceid,
          !is.na(pace_pred) # FIX THIS!!!
+         #!raceid %in% tf_rting_nas,
+         #!raceid %in% jockey_nas$raceid
+
   ) %>% 
   group_by(raceid) %>% # add this to pre_model_dat
   mutate(jockey_rating = nm(scale(jockey_rating)),
@@ -106,10 +108,14 @@ model_data <- pre_model_data %>%
          bf_prob_5 = 1/bsp_5,
          bf_prob_60_10 = bf_prob_10 - bf_prob_60,
          bf_prob_60_5 = bf_prob_5 - bf_prob_60,
+         bf_prob_10_5 = bf_prob_5 - bf_prob_10,
          bf_prob_run1_5_fluc = (bf_prob_5 - run1_bsp_prob)/run1_bsp_prob,
          bf_prob_run1_5_fluc = ifelse(is.na(bf_prob_run1_5_fluc), 0, bf_prob_run1_5_fluc),
+         bf_prob_run1_10_fluc = (bf_prob_10 - run1_bsp_prob)/run1_bsp_prob,
+         bf_prob_run1_10_fluc = ifelse(is.na(bf_prob_run1_10_fluc), 0, bf_prob_run1_10_fluc),
          ) %>%
-  filter(!is.na(bf_prob_60))
+  filter(!is.na(bf_prob_60)) #%>%
+  #mutate(pace_pred=fct(pace_pred))
 
 # check ratings correlate
 hist_data <- model_data %>% filter(!preraceadjustedrating %in% c(0,999))
@@ -129,14 +135,14 @@ model_formula = as.formula(paste(target_var, '~', paste(model_vars, collapse = "
 
 # train/test dates
 train_date_start = '2024-01-01'
-test_date_start = '2026-01-01'   # run from 1st June with training data up to 30th May
-test_date_end = '2026-12-31'
+test_date_start = '2025-07-01'   # run from 1st June with training data up to 30th May
+test_date_end = '2025-12-31'
 
 # training sample w final filtering
 train_data <- model_data %>% 
   filter(meetingdate >= train_date_start,
          meetingdate < test_date_start,
-         between(betfairwinsp, 1.2, 50)
+         between(betfairwinsp, 1.1, 99)
          ) %>%
   select(raceid, meetingdate, all_of(model_vars), all_of(target_var)) # final select
 
@@ -193,6 +199,7 @@ pnl_table(test_pnl_dat, c( 'surface', 'raceclass' ), 0, 0, 0.1) # winprob rank
 pnl_table(test_pnl_dat, c( 'surface', 'racecode' ), 0, 0, 0.1) # winprob rank
 pnl_table(test_pnl_dat, c( 'surface', 'bsp_index_all' ), 0, 0, 0.1) # overall
 pnl_table(test_pnl_dat, c( 'surface', 'bf_firm' ), 0, 0, 0.1) # overall
+
 
 
 # check model v market

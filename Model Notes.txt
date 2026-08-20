@@ -48,7 +48,7 @@ Kerdos Work Plan (v4)
    
    - Change in J/T from run1
    
-5. Race class - see Mike's sheet
+5. Race class - see Mike's sheet - DONE
    - How to build in?
    - Chat with Mike
    

@@ -45,24 +45,25 @@ target_var = 'finish_group_binary' # 'binary', 'finish_group_binary', 'finish_gr
 
 # Predict finish position using tidymodels
 model_vars = c(
-  'kerdos_rating',
+  'kerdos_rating_adj',
   'kerdos_rating_rank',
   'fave_price',
-  'category_rank',
+  #'category_rank',
   'category_blended_score',
+  #'category_confidence',
   'draw_relative',
   'distance_m',
   'weightcarried', # weight_relative
   'horseage',
-  'horsegender',
+  #'horsegender',
   'daysoff',
   'bf_prob_run1_5_fluc',
   'bf_prob_60',
-  'bf_60_rank',
-  'bf_prob_60_5',
-  'raceclass',
-  'pace_pred',
-  'field_size'
+  'bf_60_rank'
+ # 'bf_prob_60_5',
+  #'raceclass_bin',
+  #'pace_pred'
+  #'field_size'
   #'goingabbrev'
   #'jockey_rating',
   #'trainer_rating',
@@ -94,13 +95,14 @@ model_data <- pre_model_data %>%
          racesurfacename == 'Turf',
          raceclass %in% c(2:4),
          !racecode %in% c('S', 'W', 'GA', 'IM'),
+         !is.na(pace_pred), # FIX THIS!!!
+         !is.na(kerdos_rating_z)
          #!raceid %in% tf_rating_nas,
          #!raceid %in% jockey_nas$raceid,
-         !is.na(pace_pred) # FIX THIS!!!
   ) %>% 
   group_by(raceid) %>% # add this to pre_model_dat
   mutate(jockey_rating = nm(scale(jockey_rating)),
-         bf_60_rank=rank(-bsp_60, ties.method="min")/numberofrunners) %>% ungroup() %>%
+         bf_60_rank=rank(bsp_60, ties.method="min")/numberofrunners) %>% ungroup() %>%
   mutate(bf_prob_60 = 1/bsp_60,
          bf_prob_10 = 1/bsp_10,
          bf_prob_5 = 1/bsp_5,
@@ -108,7 +110,7 @@ model_data <- pre_model_data %>%
          bf_prob_60_5 = bf_prob_5 - bf_prob_60,
          bf_prob_run1_5_fluc = (bf_prob_5 - run1_bsp_prob)/run1_bsp_prob,
          bf_prob_run1_5_fluc = ifelse(is.na(bf_prob_run1_5_fluc), 0, bf_prob_run1_5_fluc),
-         ) %>%
+         raceclass_bin = as.factor(ifelse(raceclass %in% c(2, 3, 4), '2-4', '5-6'))) %>%
   filter(!is.na(bf_prob_60))
 
 # check ratings correlate
@@ -136,7 +138,8 @@ test_date_end = '2026-12-31'
 train_data <- model_data %>% 
   filter(meetingdate >= train_date_start,
          meetingdate < test_date_start,
-         between(betfairwinsp, 1.2, 99)
+         #between(betfairwinsp, 1.2, 50),
+         #kerdos_rating_rank > 0.6666
          ) %>%
   select(raceid, meetingdate, all_of(model_vars), all_of(target_var)) # final select
 
@@ -160,7 +163,7 @@ min_n = 10 # specify minimum tree n sequenc
 tree_depth = 3
 learn_rate = 0.1
 loss_reduction = 0.01
-setSeed=1
+setSeed=0
 source('uk_racing_model_tune.R') # xbg tuning script
 
 

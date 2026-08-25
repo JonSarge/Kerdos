@@ -320,7 +320,18 @@ pre_model_data <- gb_flat_all_cols %>%
   mutate(bf_prob_60 = 1/bsp_60,
          bf_prob_10 = 1/bsp_10,
          bf_prob_5 = 1/bsp_5,
-         bf_prob_0 = 1/betfairwinsp) %>%
+         bf_prob_0 = 1/betfairwinsp,
+         bf_prob_60_5 = (bf_prob_5 - bf_prob_60),
+         bf_prob_5_run1_fluc = (bf_prob_5 - run1_bsp_prob)/run1_bsp_prob,
+         bf_prob_5_run1_fluc = ifelse(is.na(bf_prob_5_run1_fluc), 0, bf_prob_5_run1_fluc),
+         bf_prob_10_run1_fluc = (bf_prob_10 - run1_bsp_prob)/run1_bsp_prob,
+         bf_prob_10_run1_fluc = ifelse(is.na(bf_prob_10_run1_fluc), 0, bf_prob_10_run1_fluc),
+         bf_prob_60_run1_fluc = (bf_prob_60 - run1_bsp_prob)/run1_bsp_prob,
+         bf_prob_60_run1_fluc = ifelse(is.na(bf_prob_60_run1_fluc), 0, bf_prob_60_run1_fluc),
+         bf_under_5=fct(ifelse(bsp_60 < 5, 1, 0))) %>%
+  group_by(raceid) %>%
+  mutate(runners_under_5=sum(bsp_60<5),
+         raceclass_5_6=fct(ifelse(raceclass %in% c(5, 6), 1, 0))) %>% ungroup() %>%
   # join bookies data
   left_join(., bookies_prices %>% select(-c(meetingdate, coursename)), 
             by=c('raceid', 'horsecode'), suffix=c('_1', '_2')) %>%

@@ -46,7 +46,7 @@ target_var = 'finish_group_binary'
 
 # Predict finish position using tidymodels
 model_vars = c(
-  'kerdos_rating_adj',
+  'kerdos_rating_z',
   'kerdos_rating_rank',
   'fave_price',
   'category_blended_score',
@@ -57,10 +57,15 @@ model_vars = c(
   'daysoff',
   'sb_m',
   'bf_prob_60',
-  'raceclass',
+  #'raceclass',
   'pace_pred',
-  'jockey_rating_top'
-  #'trainer_rating_top'
+  'jockey_rating_top',
+  'trainer_rating_top'
+  #'bf_prob_60_run1_fluc',
+  #'bf_prob_60_5',
+  #'bf_under_5',
+  #'runners_under_5',
+  #'raceclass_5_6'
   )
 
 # try a top jockey/trainer dummy var
@@ -80,15 +85,15 @@ model_data <- pre_model_data %>%
          jockey_rating_bin=ifelse(is.na(jockey_rating_bin), 5, jockey_rating_bin),
          jockey_rating_top=case_when(
            jockey_rating_bin %in% c(9:10) ~ 1,
-           jockey_rating_bin %in% c(6:8) ~ 2,
-           jockey_rating_bin %in% c(1:5) ~ 3,
+           jockey_rating_bin %in% c(5:8) ~ 2,
+           jockey_rating_bin %in% c(1:4) ~ 3,
            TRUE ~ 3),
          trainer_rating_bin=round(Rating_Trainer/10),
          trainer_rating_bin=ifelse(is.na(trainer_rating_bin), 5, trainer_rating_bin),
          trainer_rating_top=case_when(
-           trainer_rating_bin %in% c(9:10) ~ 1,
-           trainer_rating_bin %in% c(7:8) ~ 2,
-           trainer_rating_bin %in% c(1:6) ~ 3,
+           trainer_rating_bin %in% c(8:10) ~ 1,
+           trainer_rating_bin %in% c(5:7) ~ 2,
+           trainer_rating_bin %in% c(1:4) ~ 3,
            TRUE ~ 3)
          ) %>%
   mutate(across(c(jockey_rating_top, trainer_rating_top), ~as.factor(.)))
@@ -105,7 +110,7 @@ test_date_end = '2026-12-31'
 train_data <- model_data %>% 
   filter(meetingdate >= train_date_start,
          meetingdate < test_date_start,
-         between(betfairwinsp, 1.1, 99)
+         between(betfairwinsp, 1.1, 50)
          ) %>%
   select(raceid, meetingdate, all_of(model_vars), all_of(target_var)) # final select
 
@@ -132,7 +137,6 @@ loss_reduction = 0.01
 setSeed=0
 source('uk_racing_model_tune.R') # xbg tuning script
 
-
 #### generate results ####
 
 test_pnl_dat <- pnl_df(c(1:4)) %>%
@@ -140,12 +144,13 @@ test_pnl_dat <- pnl_df(c(1:4)) %>%
          Rating_Jockey, Rating_Trainer, -winclass, goingabbrev) %>%
   relocate(starts_with('betfairwin'), .before=winprob) %>%
   rename(surface=racesurfacename) %>%
-  filter(betfairwinsp <= 100, # bf_prob_5 > bf_prob_60,
+  filter(betfairwinsp <= 100,
+        # bf_prob_5 < bf_prob_60,
          ) %>%
   mutate(bf_firm=ifelse(bf_prob_5 > bf_prob_60, 1, 0))
 
 # pnl tables
-conf_levels = c(0, 0.025, 0.075)
+conf_levels = c(0, 0.04, 0.08)
 for(i in 1:length(conf_levels)){
   mins = c(0, conf_levels[i], 0.1) # exp val; conf level; winprob min
   print(cbind(pnl_table(test_pnl_dat, c( 'surface', 'bsp_index_all' ), mins[1], mins[2], mins[3]), conf=conf_levels[i]))
@@ -159,11 +164,8 @@ pnl_table(test_pnl_dat, c( 'surface', 'bsp_index_all' ), 0, 0, 0.1) # overall
 pnl_table(test_pnl_dat, c( 'surface', 'bf_firm' ), 0, 0, 0.1) # flucs
 
 
+# export results csv
+# write.csv(test_pnl_dat, paste0('test_pnl_Turf_',  Sys.Date(), '.csv') , row.names=F, na='')
 
-# export results
-write.csv(test_pnl_dat, paste0('test_pnl_Turf_',  Sys.Date(), '.csv') , row.names=F, na='')
-
-
-#### save rds file ####
+# save rds file
 # saveRDS(final_model, file = paste0('gb_turf_winprobs_', Sys.Date(), '.rds'))
-

@@ -194,7 +194,7 @@ gb_flat_all_cols <- gb_racing_sql %>%
          run1_betfairwinsp = ifelse(is.na(run1_betfairwinsp)|run1_betfairwinsp==0, betfairwinsp, run1_betfairwinsp),
          bsp_run1_fluc = (run1_betfairwinsp-betfairwinsp)/run1_betfairwinsp,
          bsp_run1_fluc = ifelse(bsp_run1_fluc < -2, -2, bsp_run1_fluc),
-         bsp_prob_run1_fluc = (bsp_prob - run1_bsp_prob)/run1_bsp_prob,
+         bsp_prob_run1_fluc = (bsp_prob - run1_bsp_prob),
          bsp_prob_run1_fluc = ifelse(is.na(bsp_prob_run1_fluc), 0, bsp_prob_run1_fluc)) %>%
   # race-specific vars
   group_by(raceid) %>%
@@ -300,7 +300,7 @@ pre_model_data <- gb_flat_all_cols %>%
          kerdos_rating_adj = pnorm(kerdos_rating_z) * 100, # 0-100 adj
          # add k-rating rank per race here (after any race filtering) 
          kerdos_rating_rank=rank(-kerdos_rating, ties.method="min"),
-         bsp_rank=rank(betfairwinsp, ties.method="min")/numberofrunners,
+         bsp_rank=rank(betfairwinsp, ties.method="min"),
          ) %>% ungroup() %>%
   relocate(contains('kerdos_rating'), .after=pre_race_rating_adjusted) %>%
   select(!c(all_of(na_cols), all_of(zero_cols))) %>%
@@ -328,7 +328,8 @@ pre_model_data <- gb_flat_all_cols %>%
          bf_prob_10_run1_fluc = ifelse(is.na(bf_prob_10_run1_fluc), 0, bf_prob_10_run1_fluc),
          bf_prob_60_run1_fluc = (bf_prob_60 - run1_bsp_prob)/run1_bsp_prob,
          bf_prob_60_run1_fluc = ifelse(is.na(bf_prob_60_run1_fluc), 0, bf_prob_60_run1_fluc),
-         bf_under_5=fct(ifelse(bsp_60 < 5, 1, 0))) %>%
+         bf_prob_60_rank = rank(bsp_60, ties.method="min"),
+         bf_under_5 = fct(ifelse(bsp_60 < 5, 1, 0))) %>%
   group_by(raceid) %>%
   mutate(runners_under_5=sum(bsp_60<5),
          raceclass_5_6=fct(ifelse(raceclass %in% c(5, 6), 1, 0))) %>% ungroup() %>%

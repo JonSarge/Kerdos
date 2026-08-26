@@ -132,9 +132,9 @@
     # Normalize numeric predictors
     step_normalize(all_numeric_predictors()) %>%
     # Remove highly correlated predictors
-    step_corr(all_numeric_predictors(), threshold = 0.9) # %>%
+    step_corr(all_numeric_predictors(), threshold = 0.9)  %>%
     # SMOTE on Win and Place classes
-  #  step_smote(target_var, over_ratio = 0.5, skip = TRUE) 
+    step_smote(target_var, over_ratio = 0.9, skip = TRUE) 
 
 
   

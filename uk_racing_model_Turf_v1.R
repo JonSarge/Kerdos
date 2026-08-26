@@ -56,35 +56,29 @@ model_vars = c(
   'horseage',
   'daysoff',
   'sb_m',
-  #'bf_prob_60',
   'bf_prob_60',
- #'bsp_rank',
-  'bf_prob_10_rank',
+ # 'bf_prob_10_rank',
   'raceclass',
   'racecode',
   'pace_pred',
   'jockey_rating_top',
   'trainer_rating_top'
-  #'bf_prob_60_run1_fluc'
+  #'bf_prob_60_run1_fluc',
   #'bf_prob_60_5'
-  #'field_size',
+  #'field_size'
   #'bf_under_5'
   # 'runners_under_5'
   )
-
-# try a top jockey/trainer dummy var
-# call bf_prob_60, bf_prob_60_5  
 
 # modelling df w. final filters    
 model_data <- pre_model_data %>%  
   filter(!raceid %in% ratings_remove$raceid, # CHECK THESE TO ADD BACK IN!!!
          !(preraceadjustedrating >= 70 & kerdos_rating < 30), # fix this in racing data script
          racesurfacename == 'Turf',
-         raceclass %in% c(5:6), # Separate model for C1 races
-         !racecode %in% c('S', 'W', 'GA', 'IM'), # low quality/sample races
+         raceclass %in% c(2:6), # Separate model for C1 races
          !is.na(pace_pred), # FIX THIS!!!
          !is.na(bf_prob_60),
-         #between(betfairwinsp, 1.1, 50),
+         between(bsp_60, 1.1, 50),
   ) %>%
   mutate(jockey_rating_bin=round(jockey_rating/10),
          jockey_rating_bin=ifelse(is.na(jockey_rating_bin), 5, jockey_rating_bin),
@@ -115,7 +109,7 @@ test_date_end = '2026-12-31'
 train_data <- model_data %>% 
   filter(meetingdate >= train_date_start,
          meetingdate < test_date_start,
-         #kerdos_rating_rank %in% c(1:6)
+         racecode %in% c('I'), # low quality/sample races    #kerdos_rating_rank %in% c(1:6)
          ) %>%
   select(raceid, meetingdate, all_of(model_vars), all_of(target_var)) # final select
 
@@ -150,14 +144,14 @@ test_pnl_dat <- pnl_df(c(1:4)) %>%
          Rating_Jockey, Rating_Trainer, -winclass, goingabbrev) %>%
   relocate(starts_with('betfairwin'), .before=winprob) %>%
   rename(surface=racesurfacename) %>%
-  filter(betfairwinsp <= 100,
-         #raceclass %in% c(5,6),
-         #bf_prob_5 > bf_prob_60,
+  filter(!racecode %in% c('GA', 'S', 'W'), #bf_prob_5 > bf_prob_60,
+         conf_level > 0.0,
+         #racecode %in% c('I', 'IA')
          ) %>%
   mutate(bf_firm=ifelse(bf_prob_5 > bf_prob_60, 1, 0))
 
 # pnl tables
-conf_levels = c(0, 0.04, 0.08)
+conf_levels = c(0, 0.04, 0.1)
 for(i in 1:length(conf_levels)){
   mins = c(0, conf_levels[i], 0.1) # exp val; conf level; winprob min
   print(cbind(pnl_table(test_pnl_dat, c( 'surface', 'bsp_index_all' ), mins[1], mins[2], mins[3]), conf=conf_levels[i]))
@@ -166,10 +160,9 @@ pnl_table(test_pnl_dat, c( 'surface', 'month' ), 0, 0.0, 0.1) # months
 pnl_table(test_pnl_dat, c( 'surface', 'bsp_index', 'bsp_bin' ), 0, 0.0, 0.1) # bsp bins
 pnl_table(test_pnl_dat, c( 'surface', 'winprob_rank' ), 0, 0, 0.1) # winprob rank
 pnl_table(test_pnl_dat, c( 'surface', 'raceclass' ), 0, 0, 0.1) # winprob rank
-pnl_table(test_pnl_dat, c( 'surface', 'racecode' ), 0, 0, 0.1) # winprob rank
+pnl_table(test_pnl_dat, c( 'surface', 'racecode'), 0, 0, 0.1) # winprob rank
 pnl_table(test_pnl_dat, c( 'surface', 'bsp_index_all' ), 0, 0, 0.1) # overall
 pnl_table(test_pnl_dat, c( 'surface', 'bf_firm' ), 0, 0, 0.1) # flucs
-
 
 # export results csv
 # write.csv(test_pnl_dat, paste0('test_pnl_Turf_',  Sys.Date(), '.csv') , row.names=F, na='')

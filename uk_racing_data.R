@@ -56,10 +56,12 @@ if(!exists('gb_racing_sql')){
 }
 
 # load recent raw data from Mike and select relevant (stored) cols only
-# gb_data_recent <- read.csv("gb_recent_data.csv") %>% 
-#   select(names(gb_racing_sql)) %>%
-#   mutate(raceid=ch(raceid),
-#          positionofficial=99)
+gb_data_recent_1 <- read.csv("gb_recent_data.csv")
+
+# final recent data to be rbinded
+gb_data_recent <- gb_data_recent_1 %>%
+  select(names(gb_racing_sql)) %>%
+  mutate(raceid=ch(raceid))
 
 
 #### FEATURE ENGINEERING #####
@@ -73,9 +75,6 @@ bsp_int=c(seq(0, 10, 2.5), 15, 25, 50, 1001)
 jockey_ratings <- read.csv('jockey_ratings.csv')
 trainer_ratings <- read.csv('trainer_ratings.csv')
 
-# class ranks
-class_rankings <- read.csv('gb_racing_raceclass.csv')
-
 # use mins to fill na's not in a jockey period
 jockey_rating_mins <- jockey_ratings %>% 
   group_by(jockeyfullname=Jockey) %>% 
@@ -83,11 +82,102 @@ jockey_rating_mins <- jockey_ratings %>%
   ungroup()
 
 
-# load flucs data
+#### market data prep - join to pre_model_data below ####
+
+#load flucs data
 load("kerdos_flucs_data.rda")
 
-# load SB data
-bookies_prices <- read.csv('sb_output.csv')
+# bsp data
+bsp_data_old <- flucs_data %>%
+  filter(!is.na(horsecode)) %>%
+  select(raceid, scheduledtimeofracegmt, horsecode, bsp_60, bsp_10, bsp_5)
+# extract market $ data from recent
+bsp_data_recent <- gb_data_recent_1 %>%
+  select(raceid, scheduledtimeofracegmt, horsecode, bsp_60, bsp_10, bsp_5)
+# bind old & new
+bsp_data <- rbind(bsp_data_old, bsp_data_recent)
+# check dupes
+bsp_data %>% count(raceid, horsecode) %>% filter(n>1)
+# check NA's
+bsp_60_na <- bsp_data %>% filter(is.na(bsp_60))
+
+# bookies data
+bookies_data_1 <- flucs_data %>%
+  filter(!is.na(horsecode)) %>%
+  select(raceid, scheduledtimeofracegmt, horsecode, starts_with('sb_'))
+# updated data
+bookies_data_2 <- read.csv('sb_output.csv') %>% select(-c(meetingdate, coursename))
+# join and pre old data
+bookies_data_old <- bookies_data_1 %>%
+  left_join(., bookies_data_2, by=c('raceid', 'horsecode'), suffix=c('', '_1')) %>%
+  mutate(sb_o = coalesce(sb_o_1, sb_o),
+         sb_m = coalesce(sb_m_1, sb_m),
+         sb_m=ifelse(is.na(sb_m), sb_o, sb_m)) %>%
+  select(-ends_with('_1'))
+# get recent data
+bookies_data_recent <- gb_data_recent_1 %>%
+  select(raceid, scheduledtimeofracegmt, horsecode, starts_with('sb_')) %>%
+  mutate(sb_m=ifelse(is.na(sb_m), sb_o, sb_m))
+# join old & recent
+bookies_data <- rbind(bookies_data_old, bookies_data_recent) %>% select(-scheduledtimeofracegmt)
+# check for dupes
+bookies_data %>% count(raceid, horsecode) %>% filter(n>1)
+# check NA's
+bookies_na <- bookies_data %>% filter(is.na(sb_m))
+
+# rbind this to flucs data old
+market_data <- bsp_data %>% left_join(., bookies_data, by=c('raceid', 'horsecode'))
+
+
+
+#### class rank data prep ####
+
+# class ranks
+class_rankings_old <- read.csv('gb_racing_raceclass.csv')
+# class rank group summary
+class_ranking_groups <- read.csv("~/Kerdos/class_ranks.csv", comment.char="#", 
+                        fileEncoding = "latin1")
+
+class_ranking_groups_fill <- class_ranking_groups %>%
+  group_by(race_type, raceclass, age_category) %>%
+  mutate(blended_score_ave=mean(blended_score),
+         rank_median=median(rank),
+         raceclass=as.factor(raceclass)) %>%
+  ungroup() %>%
+  select(racecode, raceclass, age_category, rank_median, blended_score_ave) %>%
+  unique()
+
+class_data <- gb_data_recent %>%
+  select(raceid, racecode, raceclass, horseage, horsegender) %>%
+  arrange(horsegender) %>%
+  group_by(raceid) %>%
+  mutate(gender=list(unique(horsegender))) %>% ungroup() %>%
+  mutate(gender = sapply(gender, paste, collapse = ", "),
+         race_type = case_when(
+           racecode == "E"  ~ "Claimer",
+           racecode == "G"  ~ "Maiden",
+           racecode == "G1" ~ "Group 1",
+           racecode == "G2" ~ "Group 2",
+           racecode == "G3" ~ "Group 3",
+           racecode == "GA" ~ "Maiden",
+           racecode == "HM" ~ "Handicap",
+           racecode == "I"  ~ "Handicap 1",
+           racecode == "IA" ~ "Handicap (Apprentice)",
+           racecode == "IM" ~ "Handicap (Amateur)",
+           racecode == "L"  ~ "Listed",
+           racecode == "P"  ~ "Novice",
+           racecode == "PA" ~ "Novice",
+           racecode == "S"  ~ "Handicap",
+           racecode == "W"  ~ "Seller",
+           racecode == "X"  ~ "Claiming Handicap",
+           racecode == "XA" ~ "Handicap",
+           TRUE ~ NA_character_
+         ),
+         )
+
+gender_combos <- class_data %>% count(gender)
+
+
 
 
 # get GB Flat Races - bind all years here!
@@ -314,9 +404,10 @@ pre_model_data <- gb_flat_all_cols %>%
   mutate(jockey_rating = ifelse(is.na(Rating_Jockey), Rating_Jockey_min, Rating_Jockey),
          jockey_rating_na=as.factor(ifelse(is.na(Rating_Jockey), 1, 0))) %>%
   # join flucs data
-  left_join(., flucs_data %>% 
-              select(-scheduledtimeofracegmt) %>%
-              mutate(horsecode=nm(horsecode)), by=c('raceid', 'horsecode')) %>% 
+  left_join(., market_data %>% select(-scheduledtimeofracegmt), by=c('raceid', 'horsecode')) %>%
+  #left_join(., flucs_data %>% 
+  #            select(-scheduledtimeofracegmt) %>%
+  #           mutate(horsecode=nm(horsecode)), by=c('raceid', 'horsecode')) %>% 
   mutate(bf_prob_60 = 1/bsp_60,
          bf_prob_10 = 1/bsp_10,
          bf_prob_5 = 1/bsp_5,
@@ -330,17 +421,16 @@ pre_model_data <- gb_flat_all_cols %>%
          bf_prob_60_run1_fluc = ifelse(is.na(bf_prob_60_run1_fluc), 0, bf_prob_60_run1_fluc),
          bf_prob_60_rank = rank(bsp_60, ties.method="min"),
          bf_prob_10_rank = rank(bsp_10, ties.method="min"),
-         bf_under_5 = fct(ifelse(bsp_60 < 5, 1, 0))) %>%
+         bf_under_5 = fct(ifelse(bsp_60 < 5, 1, 0)),
+         age_category=ifelse(horseage <= 2, '2yo only', 'Older (3yo+, ages combined)')) %>%
   group_by(raceid) %>%
   mutate(runners_under_5=sum(bsp_60<5),
          raceclass_5_6=fct(ifelse(raceclass %in% c(5, 6), 1, 0))) %>% ungroup() %>%
-  # join bookies data
-  left_join(., bookies_prices %>% select(-c(meetingdate, coursename)), 
-            by=c('raceid', 'horsecode'), suffix=c('_1', '_2')) %>%
-  mutate(sb_o = coalesce(sb_o_2, sb_o_1),
-         sb_m = coalesce(sb_m_2, sb_m_1)) %>%
-  # join class data
-  left_join(., class_rankings, by='raceid') %>%
+    # join class data
+  left_join(., class_rankings_old %>% select(raceid, category_rank, category_blended_score), by='raceid') %>%
+  left_join(., class_ranking_groups_fill, by=c('racecode', 'raceclass', 'age_category')) %>% 
+  mutate(category_rank=ifelse(is.na(category_rank), rank_median, category_rank),
+         category_blended_score=ifelse(is.na(category_blended_score), blended_score_ave, category_blended_score)) %>%
   arrange(scheduledtimeofracegmt, saddlecloth)
 
 

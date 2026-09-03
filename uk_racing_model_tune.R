@@ -17,12 +17,13 @@
     dat <- bind_cols(test_data, 
                      winprob=predictions$.pred_Win,
                      winclass=predictions$.pred_class,
-                     winprob_sim=predictions_sim$.pred_Win,
-                     betfairwinsp_sim=test_data_sim$betfairwinsp_sim) %>%
+                    # winprob_sim=predictions_sim$.pred_Win,
+                    # betfairwinsp_sim=test_data_sim$betfairwinsp_sim
+                    ) %>%
       group_by(raceid) %>%
       mutate(
         winprob_adj=winprob/sum(winprob),
-        winprob_sim_adj=winprob_sim/sum(winprob_sim),
+        #winprob_sim_adj=winprob_sim/sum(winprob_sim),
         winprob_rank=dense_rank(-winprob_adj),
         win=ifelse(positionofficial==1, 1, 0),
         win=ifelse(sum(win)==2 & win==1, 0.5, win) # dead-heat adj
@@ -31,7 +32,7 @@
              bsp_index_all=1,
              pick=ifelse(winprob_rank %in% ranks, 1, 0),
              winprice=1/winprob_adj, # model price
-             winprice_sim=1/winprob_sim_adj, # sim model price
+           #  winprice_sim=1/winprob_sim_adj, # sim model price
              ave_win_bsp=ifelse(win==1, betfairwinsp, NA),
              profit=win*betfairwinsp-1,
              bf_prob = 1/(betfairwinsp),

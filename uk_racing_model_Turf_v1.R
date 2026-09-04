@@ -38,6 +38,7 @@ loadNewData = 0
 
 # generate model data
 if(!exists('pre_model_data')){
+  
   source('uk_racing_data.R')
 }
 
@@ -59,11 +60,11 @@ model_vars = c(
   'bf_prob_60',
  # 'bf_prob_10_rank',
   'raceclass',
-  'racecode',
+  #'racecode',
   'pace_pred',
   'jockey_rating_top',
   'trainer_rating_top'
-  #'bf_prob_60_run1_fluc',
+  #'bf_prob_run1_fluc'
   #'bf_prob_60_5'
   #'field_size'
   #'bf_under_5'
@@ -93,7 +94,12 @@ model_data <- pre_model_data %>%
            trainer_rating_bin %in% c(8:10) ~ 1,
            trainer_rating_bin %in% c(5:7) ~ 2,
            trainer_rating_bin %in% c(1:4) ~ 3,
-           TRUE ~ 3)
+           TRUE ~ 3),
+         bf_prob_run1_fluc = (bf_prob_60 - run1_bsp_prob)/run1_bsp_prob,
+         bf_prob_run1_fluc = ifelse(is.na(bf_prob_60_run1_fluc), 0, bf_prob_60_run1_fluc),
+         #bf_prob_60 = 1/sb_m,
+         bsp_0 = betfairwinsp,
+         betfairwinsp = bsp_0 * 1.0 + bsp_5 * 0.0
          ) %>%
   mutate(across(c(jockey_rating_top, trainer_rating_top), ~as.factor(.)))
 
@@ -136,6 +142,10 @@ tree_depth = 3
 learn_rate = 0.1
 loss_reduction = 0.01
 setSeed=0
+
+# run predictions off saved files
+savedObjPreds = 1
+if(savedObjPreds==1) savedWinprobObj = 'gb_turf_winprobs_2026-08-26.rds' # edit obj name here
 source('uk_racing_model_tune.R') # xbg tuning script
 
 #### generate results ####
@@ -144,14 +154,16 @@ test_pnl_dat <- pnl_df(c(1:4)) %>%
          Rating_Jockey, Rating_Trainer, -winclass, goingabbrev) %>%
   relocate(starts_with('betfairwin'), .before=winprob) %>%
   rename(surface=racesurfacename) %>%
-  filter(!racecode %in% c('GA', 'S', 'W'), #bf_prob_5 > bf_prob_60,
+  filter(!racecode %in% c('GA', 'S', 'W', 'E', 'X'), 
          conf_level > 0.0,
-         #racecode %in% c('I', 'IA')
+         meetingdate >= '2026-06-11'
+         #month %in% c('Jul', 'Aug'),
+         #bf_prob_5 < bf_prob_60
          ) %>%
   mutate(bf_firm=ifelse(bf_prob_5 > bf_prob_60, 1, 0))
 
 # pnl tables
-conf_levels = c(0, 0.04, 0.1)
+conf_levels = c(0, 0.04, 0.08)
 for(i in 1:length(conf_levels)){
   mins = c(0, conf_levels[i], 0.1) # exp val; conf level; winprob min
   print(cbind(pnl_table(test_pnl_dat, c( 'surface', 'bsp_index_all' ), mins[1], mins[2], mins[3]), conf=conf_levels[i]))

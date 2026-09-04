@@ -63,34 +63,36 @@
   }
   chart.rpart<-function(model, title){rpart.plot(model, digits=3, type=3, extra = 101, main=title)}
   
-  price_sim <- function(price_col){
-    test_data %>%
-      rename(price = !!sym(price_col)) %>%
-      group_by(raceid) %>%
-      mutate(
-        total_prob = sum(1 / price),                # original overround (race total)
-        is_fav = price == min(price),
-        fav_price = nm(price[is_fav][1]),
-        # jitter favourite by +/- 5 cents (one draw per race, applied only to the fav row)
-        new_fav_price = fav_price + runif(1, -0.1, 0.1),
-        new_fav_prob = 1 / new_fav_price,
-        # implied prob of all non-favourites, original
-        nonfav_prob_orig = sum((1 / price)[!is_fav]),
-        # probability "budget" left for non-favourites after fixing the fav
-        remaining_prob = total_prob - new_fav_prob,
-        # scale each non-favourite's implied prob proportionally so they sum to remaining_prob
-        scale_factor = remaining_prob / nonfav_prob_orig,
-        new_prob = if_else(is_fav, new_fav_prob, (1 / price) * scale_factor),
-        betfairwinsp_sim = 1 / new_prob
-      ) %>%
-      ungroup() %>%
-      select(betfairwinsp_sim)
-  }
+  # price_sim <- function(price_col){
+  #   test_data %>%
+  #     rename(price = !!sym(price_col)) %>%
+  #     group_by(raceid) %>%
+  #     mutate(
+  #       total_prob = sum(1 / price),                # original overround (race total)
+  #       is_fav = price == min(price),
+  #       fav_price = nm(price[is_fav][1]),
+  #       # jitter favourite by +/- 5 cents (one draw per race, applied only to the fav row)
+  #       new_fav_price = fav_price + runif(1, -0.1, 0.1),
+  #       new_fav_prob = 1 / new_fav_price,
+  #       # implied prob of all non-favourites, original
+  #       nonfav_prob_orig = sum((1 / price)[!is_fav]),
+  #       # probability "budget" left for non-favourites after fixing the fav
+  #       remaining_prob = total_prob - new_fav_prob,
+  #       # scale each non-favourite's implied prob proportionally so they sum to remaining_prob
+  #       scale_factor = remaining_prob / nonfav_prob_orig,
+  #       new_prob = if_else(is_fav, new_fav_prob, (1 / price) * scale_factor),
+  #       betfairwinsp_sim = 1 / new_prob
+  #     ) %>%
+  #     ungroup() %>%
+  #     select(betfairwinsp_sim)
+  # }
   
   
   ###############################################################################
   # INITIALIZATION
   ###############################################################################
+  
+  if(savedObjPreds == 0){
   
   tree_model = 'xgboost' 
   
@@ -149,16 +151,16 @@
     )
   
   # sim test sample
-  test_data_sim <- test_data %>% 
-    bind_cols(price_sim('betfairwinsp')) %>%
-    # recalculate bsp-linked features
-    group_by(raceid) %>%
-    mutate(bsp_prob = 1/betfairwinsp_sim,
-           bsp_rank = rank(betfairwinsp_sim, ties.method="min")/numberofrunners,
-           bsp_prob_run1_fluc = (bsp_prob - run1_bsp_prob)/run1_bsp_prob,
-           bsp_prob_run1_fluc = ifelse(is.na(bsp_prob_run1_fluc), 0, bsp_prob_run1_fluc)) %>%
-    ungroup()
-  
+  # test_data_sim <- test_data %>% 
+  #   bind_cols(price_sim('betfairwinsp')) %>%
+  #   # recalculate bsp-linked features
+  #   group_by(raceid) %>%
+  #   mutate(bsp_prob = 1/betfairwinsp_sim,
+  #          bsp_rank = rank(betfairwinsp_sim, ties.method="min")/numberofrunners,
+  #          bsp_prob_run1_fluc = (bsp_prob - run1_bsp_prob)/run1_bsp_prob,
+  #          bsp_prob_run1_fluc = ifelse(is.na(bsp_prob_run1_fluc), 0, bsp_prob_run1_fluc)) %>%
+  #   ungroup()
+  # 
   
   print(paste0('test_perc_split = ', round(nrow(test_data)/nrow(train_data)*100, 1),'%'))
   
@@ -270,6 +272,13 @@
   print('Feature importance:')
   print(vip::vip(final_model, num_features = 20))
   
+  } else {
+    
+    # saved modle obj
+    final_model <- readRDS(savedWinprobObj)
+    
+  }
+  
   ###############################################################################
   # EVALUATION
   ###############################################################################
@@ -285,10 +294,10 @@
     ungroup()
   
   # bsp sim predictions
-  predictions_sim <- final_model %>%
-    predict(test_data_sim) %>%
-    bind_cols(final_model %>% predict(test_data_sim, type = "prob"))
-  
+  # predictions_sim <- final_model %>%
+  #   predict(test_data_sim) %>%
+  #   bind_cols(final_model %>% predict(test_data_sim, type = "prob"))
+  # 
   print('=== PERFORMANCE METRICS ===')
   print(predictions %>% metrics(truth = !!sym(target_var), estimate = .pred_class))
   

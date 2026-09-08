@@ -32,7 +32,7 @@ if (!exists("cl") || is.null(cl) || !inherits(cl, "cluster")) {
   registerDoParallel(cl)
 }
 
-loadNewData = 0
+loadNewData = 1
 
 #### import data  preprocess ####
 
@@ -58,29 +58,27 @@ model_vars = c(
   'daysoff',
   'sb_m',
   'bf_prob_60',
- # 'bf_prob_10_rank',
+  'bf_prob_60_rank',
   'raceclass',
   #'racecode',
   'pace_pred',
   'jockey_rating_top',
-  'trainer_rating_top'
-  #'bf_prob_run1_fluc'
+  'trainer_rating_top',
+  'bf_prob_run1_fluc'
   #'bf_prob_60_5'
   #'field_size'
   #'bf_under_5'
   # 'runners_under_5'
   )
 
+
+sim_ints <- c(120, 60, 10, 5, 0)
+sim_int_list = list()
+
+for(i in 1:length(sim_ints)){
+  
 # modelling df w. final filters    
 model_data <- pre_model_data %>%  
-  filter(!raceid %in% ratings_remove$raceid, # CHECK THESE TO ADD BACK IN!!!
-         !(preraceadjustedrating >= 70 & kerdos_rating < 30), # fix this in racing data script
-         racesurfacename == 'Turf',
-         raceclass %in% c(2:6), # Separate model for C1 races
-         !is.na(pace_pred), # FIX THIS!!!
-         !is.na(bf_prob_60),
-         between(bsp_60, 1.1, 50),
-  ) %>%
   mutate(jockey_rating_bin=round(jockey_rating/10),
          jockey_rating_bin=ifelse(is.na(jockey_rating_bin), 5, jockey_rating_bin),
          jockey_rating_top=case_when(
@@ -95,13 +93,40 @@ model_data <- pre_model_data %>%
            trainer_rating_bin %in% c(5:7) ~ 2,
            trainer_rating_bin %in% c(1:4) ~ 3,
            TRUE ~ 3),
-         bf_prob_run1_fluc = (bf_prob_60 - run1_bsp_prob)/run1_bsp_prob,
-         bf_prob_run1_fluc = ifelse(is.na(bf_prob_60_run1_fluc), 0, bf_prob_60_run1_fluc),
-         #bf_prob_60 = 1/sb_m,
-         bsp_0 = betfairwinsp,
-         betfairwinsp = bsp_0 * 1.0 + bsp_5 * 0.0
+         # adjust bfp_prob_60 for prices > 60 mins out
+         bf_prob_60 = case_when(
+           sim_ints[i]==120 ~ 1/sb_m, 
+           TRUE ~ bf_prob_60
+           ),
+         # get relevant bf price @ int i
+         bf_price = case_when(
+           sim_ints[i]==120 ~ sb_m * 1.025,
+           sim_ints[i]==60 ~ bsp_60,
+           sim_ints[i]==10 ~ bsp_10,
+           sim_ints[i]==5 ~ bsp_5,
+           TRUE ~ betfairwinsp
+         ),
+         # get relevant bf prob @ int i
+         bf_prob = 1/bf_price, 
+         # adj run1 fluc for bf prob
+         bf_prob_run1_fluc = (bf_prob - run1_bsp_prob)/run1_bsp_prob,
+         bf_prob_run1_fluc = ifelse(is.na(bf_prob_run1_fluc), 0, bf_prob_run1_fluc),
+         # adjust profit for bf price
+         betfairwinsp = bf_price # bsp_0 * 0.0 + bsp_60 * 1.0
          ) %>%
-  mutate(across(c(jockey_rating_top, trainer_rating_top), ~as.factor(.)))
+  # adj fave price for bf price
+  group_by(raceid) %>%
+  mutate(fave_price=min(bf_price)) %>% 
+  ungroup() %>%
+  mutate(across(c(jockey_rating_top, trainer_rating_top), ~as.factor(.))) %>%
+  filter(!raceid %in% ratings_remove$raceid, # CHECK THESE TO ADD BACK IN!!!
+         !(preraceadjustedrating >= 70 & kerdos_rating < 30), # fix this in racing data script
+         racesurfacename == 'Turf',
+         raceclass %in% c(2:6), # Separate model for C1 races
+         !is.na(pace_pred), # FIX THIS!!!
+         !is.na(bf_prob),
+         between(bf_price, 1.1, 50),
+  ) 
 
 # model formula
 model_formula = as.formula(paste(target_var, '~', paste(model_vars, collapse = " + ")))
@@ -145,7 +170,7 @@ setSeed=0
 
 # run predictions off saved files
 savedObjPreds = 1
-if(savedObjPreds==1) savedWinprobObj = 'gb_turf_winprobs_2026-08-26.rds' # edit obj name here
+if(savedObjPreds==1) savedWinprobObj = 'gb_turf_winprobs_2026-09-08.rds' # edit obj name here
 source('uk_racing_model_tune.R') # xbg tuning script
 
 #### generate results ####
@@ -160,13 +185,17 @@ test_pnl_dat <- pnl_df(c(1:4)) %>%
          #month %in% c('Jul', 'Aug'),
          #bf_prob_5 < bf_prob_60
          ) %>%
-  mutate(bf_firm=ifelse(bf_prob_5 > bf_prob_60, 1, 0))
+  mutate(bf_firm=ifelse(bf_prob_5 > bf_prob_60, 1, 0),
+         bf_int = sim_ints[i])
+
+# check NA's in pnl file
+test_pnl_dat_nas <- test_pnl_dat %>% select(raceid, where(~ any(is.na(.))))
 
 # pnl tables
 conf_levels = c(0, 0.04, 0.08)
-for(i in 1:length(conf_levels)){
-  mins = c(0, conf_levels[i], 0.1) # exp val; conf level; winprob min
-  print(cbind(pnl_table(test_pnl_dat, c( 'surface', 'bsp_index_all' ), mins[1], mins[2], mins[3]), conf=conf_levels[i]))
+for(j in 1:length(conf_levels)){
+  mins = c(0, conf_levels[j], 0.1) # exp val; conf level; winprob min
+  print(cbind(pnl_table(test_pnl_dat, c( 'surface', 'bsp_index_all' ), mins[1], mins[2], mins[3]), conf=conf_levels[j]))
 }
 pnl_table(test_pnl_dat, c( 'surface', 'month' ), 0, 0.0, 0.1) # months
 pnl_table(test_pnl_dat, c( 'surface', 'bsp_index', 'bsp_bin' ), 0, 0.0, 0.1) # bsp bins
@@ -175,6 +204,27 @@ pnl_table(test_pnl_dat, c( 'surface', 'raceclass' ), 0, 0, 0.1) # winprob rank
 pnl_table(test_pnl_dat, c( 'surface', 'racecode'), 0, 0, 0.1) # winprob rank
 pnl_table(test_pnl_dat, c( 'surface', 'bsp_index_all' ), 0, 0, 0.1) # overall
 pnl_table(test_pnl_dat, c( 'surface', 'bf_firm' ), 0, 0, 0.1) # flucs
+
+# list all test_pnl df's
+sim_int_list[[length(sim_int_list)+1]] = test_pnl_dat
+
+}
+
+# compare test pnl versions
+test_pnl_comparison <- sim_int_list %>%
+  bind_rows() %>%
+  select(raceid, meetingdate, horsecode, horsename, numberofrunners, positionofficial, 
+         fave_price, bf_price, winprice, profit, bf_int) %>%
+  pivot_wider(
+    id_cols = c(raceid, meetingdate, horsecode, horsename, numberofrunners, positionofficial),
+    names_from = bf_int,
+    values_from = c(fave_price, bf_price, winprice, profit),
+    names_sep = "_"
+  ) %>%
+  #select(-ends_with('_0')) %>%
+  filter(!is.na(winprice_120)&!is.na(winprice_60)&!is.na(winprice_10)&!is.na(winprice_5)) %>%
+  mutate(across(starts_with('profit'), ~round(., 2)),
+         across(starts_with('winprice'), ~round(., 2)))
 
 # export results csv
 # write.csv(test_pnl_dat, paste0('test_pnl_Turf_',  Sys.Date(), '.csv') , row.names=F, na='')

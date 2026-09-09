@@ -406,7 +406,7 @@ pre_model_data <- gb_flat_all_cols %>%
          bf_prob_10 = 1/bsp_10,
          bf_prob_5 = 1/bsp_5,
          bf_prob_0 = 1/betfairwinsp,
-         bf_prob_60_5 = (bf_prob_5 - bf_prob_60),
+         bf_prob_60_5 = (bf_prob_5 - bf_prob_60)/bf_prob_60,
          bf_prob_5_run1_fluc = (bf_prob_5 - run1_bsp_prob)/run1_bsp_prob,
          bf_prob_5_run1_fluc = ifelse(is.na(bf_prob_5_run1_fluc), 0, bf_prob_5_run1_fluc),
          bf_prob_10_run1_fluc = (bf_prob_10 - run1_bsp_prob)/run1_bsp_prob,

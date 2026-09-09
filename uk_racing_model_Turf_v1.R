@@ -32,7 +32,7 @@ if (!exists("cl") || is.null(cl) || !inherits(cl, "cluster")) {
   registerDoParallel(cl)
 }
 
-loadNewData = 1
+loadNewData = 0
 
 #### import data  preprocess ####
 
@@ -56,7 +56,7 @@ model_vars = c(
   'weightcarried',
   'horseage',
   'daysoff',
-  'sb_m',
+  #'sb_m',
   'bf_prob_60',
   'bf_prob_60_rank',
   'raceclass',
@@ -72,7 +72,8 @@ model_vars = c(
   )
 
 
-sim_ints <- c(120, 60, 10, 5, 0)
+#sim_ints <- c(120, 60, 10, 5, 0)
+sim_ints <- c(5)
 sim_int_list = list()
 
 for(i in 1:length(sim_ints)){
@@ -107,7 +108,7 @@ model_data <- pre_model_data %>%
            TRUE ~ betfairwinsp
          ),
          # get relevant bf prob @ int i
-         bf_prob = 1/bf_price, 
+         bf_prob = 1 / bf_price, 
          # adj run1 fluc for bf prob
          bf_prob_run1_fluc = (bf_prob - run1_bsp_prob)/run1_bsp_prob,
          bf_prob_run1_fluc = ifelse(is.na(bf_prob_run1_fluc), 0, bf_prob_run1_fluc),
@@ -124,7 +125,7 @@ model_data <- pre_model_data %>%
          racesurfacename == 'Turf',
          raceclass %in% c(2:6), # Separate model for C1 races
          !is.na(pace_pred), # FIX THIS!!!
-         !is.na(bf_prob),
+         !is.na(bf_prob_60),
          between(bf_price, 1.1, 50),
   ) 
 
@@ -133,7 +134,7 @@ model_formula = as.formula(paste(target_var, '~', paste(model_vars, collapse = "
 
 # train/test dates
 train_date_start = '2024-01-01'
-test_date_start = '2026-01-01'   # run from 1st June with training data up to 30th May
+test_date_start = '2026-06-11'   # run from 1st June with training data up to 30th May
 test_date_end = '2026-12-31'
 
 # training sample w final filtering
@@ -166,10 +167,10 @@ min_n = 10 # specify minimum tree n sequenc
 tree_depth = 3
 learn_rate = 0.1
 loss_reduction = 0.01
-setSeed=0
+setSeed = 0
 
 # run predictions off saved files
-savedObjPreds = 1
+savedObjPreds = 0
 if(savedObjPreds==1) savedWinprobObj = 'gb_turf_winprobs_2026-09-08.rds' # edit obj name here
 source('uk_racing_model_tune.R') # xbg tuning script
 
@@ -181,9 +182,7 @@ test_pnl_dat <- pnl_df(c(1:4)) %>%
   rename(surface=racesurfacename) %>%
   filter(!racecode %in% c('GA', 'S', 'W', 'E', 'X'), 
          conf_level > 0.0,
-         meetingdate >= '2026-06-11'
-         #month %in% c('Jul', 'Aug'),
-         #bf_prob_5 < bf_prob_60
+         month %in% c('Jul', 'Aug'), # meetingdate >= '2026-06-11', #bf_prob_5 > bf_prob_60
          ) %>%
   mutate(bf_firm=ifelse(bf_prob_5 > bf_prob_60, 1, 0),
          bf_int = sim_ints[i])

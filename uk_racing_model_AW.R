@@ -67,6 +67,7 @@ model_vars = c(
   'jockey_rating_top',
   'trainer_rating_top'
   #'bf_prob_run1_fluc'
+  #'coursename'
   #'racecode'
   #'bf_prob_60_rank'
   #'bf_prob_60_5'
@@ -101,8 +102,8 @@ model_data <- pre_model_data %>%
 model_formula = as.formula(paste(target_var, '~', paste(model_vars, collapse = " + ")))
 
 # train/test dates
-train_date_start = '2024-01-01'
-test_date_start = '2026-06-11'   # run from 1st June with training data up to 30th May
+train_date_start = '2025-01-01'
+test_date_start = '2026-03-01'   # run from 1st June with training data up to 30th May
 test_date_end = '2026-12-31'
 
 # training sample w final filtering
@@ -200,9 +201,9 @@ test_pnl_comparison <- sim_int_list %>%
          across(starts_with('winprice'), ~round(., 2)))
 
 # export results csv
-# write.csv(test_pnl_dat, paste0('test_pnl_Turf_',  Sys.Date(), '.csv') , row.names=F, na='')
+# write.csv(test_pnl_dat, paste0('test_pnl_AW_',  Sys.Date(), '.csv') , row.names=F, na='')
 
 # save rds file
-# saveRDS(final_model, file = paste0('gb_turf_winprobs_', Sys.Date(), '.rds'))
+# saveRDS(final_model, file = paste0('gb_AW_winprobs_', Sys.Date(), '.rds'))
 
 # xgboost::xgb.plot.multi.trees(model = xgb_booster, feature_names = xgb_booster$feature_names)

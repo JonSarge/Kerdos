@@ -364,6 +364,9 @@ print(zero_cols)
 
 kerdos_rating_preds = predict(kerdos_est_model, gb_flat_all_cols)
 
+#sim_ints <- c(120, 60, 10, 5, 0) # market price int's
+sim_ints <- c(5)
+i = 1
 
 # generate pre-model df with ratings adj's
 pre_model_data <- gb_flat_all_cols %>%
@@ -399,10 +402,9 @@ pre_model_data <- gb_flat_all_cols %>%
          jockey_rating_na=as.factor(ifelse(is.na(Rating_Jockey), 1, 0))) %>%
   # join flucs data
   left_join(., market_data %>% select(-scheduledtimeofracegmt), by=c('raceid', 'horsecode')) %>%
-  #left_join(., flucs_data %>% 
-  #            select(-scheduledtimeofracegmt) %>%
-  #           mutate(horsecode=nm(horsecode)), by=c('raceid', 'horsecode')) %>% 
-  mutate(bf_prob_60 = 1/bsp_60,
+  # market features
+  mutate(bsp_5=ifelse(is.na(bsp_5), bsp_60, bsp_5), # correction for a few blank bsp-5 prices
+         bf_prob_60 = 1/bsp_60,
          bf_prob_10 = 1/bsp_10,
          bf_prob_5 = 1/bsp_5,
          bf_prob_0 = 1/betfairwinsp,
@@ -413,18 +415,57 @@ pre_model_data <- gb_flat_all_cols %>%
          bf_prob_10_run1_fluc = ifelse(is.na(bf_prob_10_run1_fluc), 0, bf_prob_10_run1_fluc),
          bf_prob_60_run1_fluc = (bf_prob_60 - run1_bsp_prob)/run1_bsp_prob,
          bf_prob_60_run1_fluc = ifelse(is.na(bf_prob_60_run1_fluc), 0, bf_prob_60_run1_fluc),
-         bf_prob_60_rank = rank(bsp_60, ties.method="min"),
-         bf_prob_10_rank = rank(bsp_10, ties.method="min"),
          bf_under_5 = fct(ifelse(bsp_60 < 5, 1, 0)),
          age_category=ifelse(horseage <= 2, '2yo only', 'Older (3yo+, ages combined)')) %>%
   group_by(raceid) %>%
-  mutate(runners_under_5=sum(bsp_60<5),
+  mutate(bf_prob_60_rank = rank(bsp_60, ties.method="min"),
+         runners_under_5=sum(bsp_60<5),
          raceclass_5_6=fct(ifelse(raceclass %in% c(5, 6), 1, 0))) %>% ungroup() %>%
     # join class data
   left_join(., class_rankings_old %>% select(raceid, category_rank, category_blended_score), by='raceid') %>%
   left_join(., class_ranking_groups_fill, by=c('racecode', 'raceclass', 'age_category')) %>% 
   mutate(category_rank=ifelse(is.na(category_rank), rank_median, category_rank),
-         category_blended_score=ifelse(is.na(category_blended_score), blended_score_ave, category_blended_score)) %>%
+         category_blended_score=ifelse(is.na(category_blended_score), blended_score_ave, category_blended_score),
+         jockey_rating_bin=round(jockey_rating/10),
+         jockey_rating_bin=ifelse(is.na(jockey_rating_bin), 5, jockey_rating_bin),
+         jockey_rating_top=case_when(
+           jockey_rating_bin %in% c(9:10) ~ 1,
+           jockey_rating_bin %in% c(5:8) ~ 2,
+           jockey_rating_bin %in% c(1:4) ~ 3,
+           TRUE ~ 3),
+         trainer_rating_bin=round(Rating_Trainer/10),
+         trainer_rating_bin=ifelse(is.na(trainer_rating_bin), 5, trainer_rating_bin),
+         trainer_rating_top=case_when(
+           trainer_rating_bin %in% c(8:10) ~ 1,
+           trainer_rating_bin %in% c(5:7) ~ 2,
+           trainer_rating_bin %in% c(1:4) ~ 3,
+           TRUE ~ 3),
+         # adjust bfp_prob_60 for prices > 60 mins out
+         bf_prob_60 = case_when(
+          sim_ints==120 ~ 1/sb_m, 
+          TRUE ~ bf_prob_60
+        ),
+        # get relevant bf price @ int i
+        bf_price = case_when(
+          sim_ints[i]==120 ~ sb_m * 1.025,
+          sim_ints[i]==60 ~ bsp_60,
+          sim_ints[i]==10 ~ bsp_10,
+          sim_ints[i]==5 ~ bsp_5,
+          TRUE ~ betfairwinsp
+        ),
+        # get relevant bf prob @ int i
+        bf_prob = 1 / bf_price, 
+        # adj run1 fluc for bf prob
+        bf_prob_run1_fluc = (bf_prob - run1_bsp_prob)/run1_bsp_prob,
+        bf_prob_run1_fluc = ifelse(is.na(bf_prob_run1_fluc), 0, bf_prob_run1_fluc),
+        # adjust profit for bf price
+        betfairwinsp = bf_price # bsp_0 * 0.0 + bsp_60 * 1.0
+   ) %>%
+   # adj fave price for bf price
+   group_by(raceid) %>%
+   mutate(fave_price=min(bf_price)) %>% 
+   ungroup() %>%
+   mutate(across(c(jockey_rating_top, trainer_rating_top), ~as.factor(.))) %>%
   arrange(scheduledtimeofracegmt, saddlecloth)
 
 

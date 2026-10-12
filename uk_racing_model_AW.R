@@ -156,6 +156,7 @@ test_pnl_dat <- pnl_df(c(1:6)) %>%
          sim_n = j,
          seed_value=seed_val
          )
+  
 
 # check NA's in pnl file
 test_pnl_dat_nas <- test_pnl_dat %>%

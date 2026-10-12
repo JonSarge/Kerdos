@@ -55,8 +55,17 @@ if(!exists('gb_racing_sql')){
   gb_racing_sql <- dbGetQuery(kon, "select distinct * from gb_racing_data where scheduledtimeofracegmt >= '2024-01-01'")
 }
 
+
+#load flucs data
+load("kerdos_flucs_data.rda")
+
 # load recent raw data from Mike and select relevant (stored) cols only
 gb_data_recent_1 <- read.csv("gb_recent_data.csv")
+
+market_data_recent <- gb_data_recent_1 %>%
+  select(names(flucs_data))
+
+flucs_data <- flucs_data %>% bind_rows(., market_data_recent)
 
 # final recent data to be rbinded
 gb_data_recent <- gb_data_recent_1 %>%
@@ -84,8 +93,6 @@ jockey_rating_mins <- jockey_ratings %>%
 
 #### market data prep - join to pre_model_data below ####
 
-#load flucs data
-load("kerdos_flucs_data.rda")
 
 # bsp data
 bsp_data_old <- flucs_data %>%
@@ -126,7 +133,9 @@ bookies_data %>% count(raceid, horsecode) %>% filter(n>1)
 bookies_na <- bookies_data %>% filter(is.na(sb_m))
 
 # rbind this to flucs data old
-market_data <- bsp_data %>% left_join(., bookies_data, by=c('raceid', 'horsecode'))
+market_data <- bsp_data %>% 
+  left_join(., bookies_data, by=c('raceid', 'horsecode'))
+  
 
 
 

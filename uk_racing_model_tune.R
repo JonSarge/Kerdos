@@ -38,7 +38,7 @@
              # within the race) compared against `bf_prob` (market-implied, race-normalised
              # by construction). Comparing those two was a scale mismatch. winprob_adj is
              # the race-normalised model probability, so this now compares like with like.
-      )
+      ) %>% unique()
     return(dat)
   }
   

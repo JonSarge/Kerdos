@@ -37,7 +37,7 @@ seed_val <- as.integer(Sys.time())
 registerDoRNG(seed_val)
 set.seed(seed_val)
 
-loadNewData = 0
+loadNewData = 1
 
 #### import data  preprocess ####
 
@@ -60,7 +60,7 @@ model_vars = c(
   'weightcarried',
   'horseage',
   'daysoff',
-  'sb_m',
+  #'sb_m',
   'bf_prob_60',
   'raceclass',
   'pace_pred',
@@ -96,14 +96,14 @@ model_data <- pre_model_data %>%
          !is.na(pace_pred), # FIX THIS!!!
          !is.na(bf_prob_60),
          numberofrunners >= 4
-  ) 
+  ) %>% unique()
 
 # model formula
 model_formula = as.formula(paste(target_var, '~', paste(model_vars, collapse = " + ")))
 
 # train/test dates
 train_date_start = '2025-01-01'
-test_date_start = '2026-03-01'   # run from 1st June with training data up to 30th May
+test_date_start = '2026-06-11'   # run from 1st June with training data up to 30th May
 test_date_end = '2026-12-31'
 
 # training sample w final filtering
@@ -139,7 +139,7 @@ loss_reduction = 0.01
 
 # run predictions off saved files
 savedObjPreds = 0
-if(savedObjPreds==1) savedWinprobObj = 'gb_turf_winprobs_2026-09-08.rds' # edit obj name here
+if(savedObjPreds==1) savedWinprobObj = 'gb_AW_winprobs_2026-10-08.rds' # edit obj name here
 source('uk_racing_model_tune.R') # xbg tuning script
 
 #### generate results ####
@@ -149,6 +149,7 @@ test_pnl_dat <- pnl_df(c(1:6)) %>%
   relocate(starts_with('betfairwin'), .before=winprob) %>%
   rename(surface=racesurfacename) %>%
   filter(!racecode %in% c('GA', 'S', 'W', 'E', 'X', 'IA', 'P'), 
+         conf_level >= 0.0
          #month %in% c( 'Jul', 'Aug'), # meetingdate >= '2026-06-11', #bf_prob_5 > bf_prob_60
          ) %>%
   mutate(bf_firm=ifelse(bf_prob_5 > bf_prob_60, 1, 0),

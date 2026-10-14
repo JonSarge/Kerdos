@@ -144,7 +144,7 @@ market_data <- bsp_data %>%
 # class ranks
 class_rankings_old <- read.csv('gb_racing_raceclass.csv')
 # class rank group summary
-class_ranking_groups <- read.csv("~/Kerdos/class_ranks.csv", comment.char="#", 
+class_ranking_groups <- read.csv("class_ranks.csv", comment.char="#", 
                         fileEncoding = "latin1")
 
 class_ranking_groups_fill <- class_ranking_groups %>%
@@ -190,7 +190,9 @@ gender_combos <- class_data %>% count(gender)
 
 
 # get GB Flat Races - bind all years here!
-gb_flat_all_cols <- gb_racing_sql %>%
+gb_flat_all_cols <- gb_racing_sql %>% 
+  
+  unique() %>%
   
   # append recent data
   {if (loadNewData == 1) bind_rows(., gb_data_recent) else .} %>%

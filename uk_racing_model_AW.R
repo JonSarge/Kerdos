@@ -37,7 +37,7 @@ seed_val <- as.integer(Sys.time())
 registerDoRNG(seed_val)
 set.seed(seed_val)
 
-loadNewData = 1
+loadNewData = 0
 
 #### import data  preprocess ####
 
@@ -51,7 +51,7 @@ target_var = 'finish_group_binary'
 
 # Predict finish position using tidymodels
 model_vars = c(
-  'kerdos_rating_z',
+  #'kerdos_rating_z',
   'kerdos_rating_rank',
   'fave_price',
   'category_blended_score',
@@ -62,7 +62,7 @@ model_vars = c(
   'daysoff',
   #'sb_m',
   'bf_prob_60',
-  'raceclass',
+  #'raceclass',
   'pace_pred',
   'jockey_rating_top',
   'trainer_rating_top'
@@ -102,8 +102,8 @@ model_data <- pre_model_data %>%
 model_formula = as.formula(paste(target_var, '~', paste(model_vars, collapse = " + ")))
 
 # train/test dates
-train_date_start = '2025-01-01'
-test_date_start = '2026-06-11'   # run from 1st June with training data up to 30th May
+train_date_start = '2024-01-01'
+test_date_start = '2026-07-01'   # run from 1st June with training data up to 30th May
 test_date_end = '2026-12-31'
 
 # training sample w final filtering
@@ -149,7 +149,7 @@ test_pnl_dat <- pnl_df(c(1:6)) %>%
   relocate(starts_with('betfairwin'), .before=winprob) %>%
   rename(surface=racesurfacename) %>%
   filter(!racecode %in% c('GA', 'S', 'W', 'E', 'X', 'IA', 'P'), 
-         conf_level >= 0.0
+         #conf_level >= 0.0
          #month %in% c( 'Jul', 'Aug'), # meetingdate >= '2026-06-11', #bf_prob_5 > bf_prob_60
          ) %>%
   mutate(bf_firm=ifelse(bf_prob_5 > bf_prob_60, 1, 0),
@@ -158,7 +158,6 @@ test_pnl_dat <- pnl_df(c(1:6)) %>%
          seed_value=seed_val
          )
   
-
 # check NA's in pnl file
 test_pnl_dat_nas <- test_pnl_dat %>%
   select(raceid, all_of(model_vars)) %>%          # cull to raceid + model_vars

@@ -37,7 +37,7 @@ seed_val <- as.integer(Sys.time())
 registerDoRNG(seed_val)
 set.seed(seed_val)
 
-loadNewData = 0
+loadNewData = 1
 
 #### import data  preprocess ####
 
@@ -51,7 +51,7 @@ target_var = 'finish_group_binary'
 
 # Predict finish position using tidymodels
 model_vars = c(
-  #'kerdos_rating_z',
+  'kerdos_rating_z',
   'kerdos_rating_rank',
   'fave_price',
   'category_blended_score',
@@ -60,18 +60,18 @@ model_vars = c(
   'weightcarried',
   'horseage',
   'daysoff',
-  #'sb_m',
+  # 'sb_m',
   'bf_prob_60',
   #'raceclass',
   'pace_pred',
   'jockey_rating_top',
   'trainer_rating_top'
-  #'bf_prob_run1_fluc'
-  #'coursename'
+  #'bf_prob_run1_fluc',
+  #'coursename',
+  #'bf_prob_60_5',
+ # 'field_size'
   #'racecode'
   #'bf_prob_60_rank'
-  #'bf_prob_60_5'
-  #'field_size'
   )
 
 
@@ -91,7 +91,7 @@ model_data <- pre_model_data %>%
   filter(!raceid %in% ratings_remove$raceid, # ADD 1-2 K=NULL RACES BACK IN
          !(preraceadjustedrating >= 70 & kerdos_rating < 30), # fix this in racing data script
          racesurfacename == 'All Weather',
-         raceclass %in% c(4:6), # Separate model for C1 races
+         raceclass %in% c(3:6), # Separate model for C1 races
          !is.na(raceclass),
          !is.na(pace_pred), # FIX THIS!!!
          !is.na(bf_prob_60),
@@ -103,7 +103,7 @@ model_formula = as.formula(paste(target_var, '~', paste(model_vars, collapse = "
 
 # train/test dates
 train_date_start = '2024-01-01'
-test_date_start = '2026-07-01'   # run from 1st June with training data up to 30th May
+test_date_start = '2026-08-01'   # run from 1st June with training data up to 30th May
 test_date_end = '2026-12-31'
 
 # training sample w final filtering

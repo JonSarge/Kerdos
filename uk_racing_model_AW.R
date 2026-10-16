@@ -60,18 +60,18 @@ model_vars = c(
   'weightcarried',
   'horseage',
   'daysoff',
-  # 'sb_m',
+  #'sb_m',
   'bf_prob_60',
+  'bf_prob_60_rank',
   #'raceclass',
   'pace_pred',
   'jockey_rating_top',
-  'trainer_rating_top'
-  #'bf_prob_run1_fluc',
-  #'coursename',
-  #'bf_prob_60_5',
- # 'field_size'
+  'trainer_rating_top',
+  'bf_prob_run1_fluc',
+  'coursename'
+  #'bf_prob_60_5'
+  #'field_size',
   #'racecode'
-  #'bf_prob_60_rank'
   )
 
 
@@ -102,8 +102,8 @@ model_data <- pre_model_data %>%
 model_formula = as.formula(paste(target_var, '~', paste(model_vars, collapse = " + ")))
 
 # train/test dates
-train_date_start = '2024-01-01'
-test_date_start = '2026-08-01'   # run from 1st June with training data up to 30th May
+train_date_start = '2024-07-01'
+test_date_start = '2026-09-01'   # run from 1st June with training data up to 30th May
 test_date_end = '2026-12-31'
 
 # training sample w final filtering
@@ -122,13 +122,8 @@ test_data <- model_data %>%
   filter(meetingdate >= test_date_start,
          meetingdate <= test_date_end)
 
-
 #### tune xgboost model ####
-
-# tuning
-tuneModels = 0
-randomGrid = 1
-randomGridSize = 10 
+tuneModels = 0; randomGrid = 1; randomGridSize = 10 
 
 # Create tuning grid with specified values
 trees = 500 # specify n trees sequence
@@ -143,15 +138,12 @@ if(savedObjPreds==1) savedWinprobObj = 'gb_AW_winprobs_2026-10-08.rds' # edit ob
 source('uk_racing_model_tune.R') # xbg tuning script
 
 #### generate results ####
-test_pnl_dat <- pnl_df(c(1:6)) %>%
+test_pnl_dat <- pnl_df(c(1:4)) %>%
   select(all_of(race_vars), month, all_of(model_vars), c(win:conf_level), 
          Rating_Jockey, Rating_Trainer, -winclass, goingabbrev) %>%
   relocate(starts_with('betfairwin'), .before=winprob) %>%
   rename(surface=racesurfacename) %>%
-  filter(!racecode %in% c('GA', 'S', 'W', 'E', 'X', 'IA', 'P'), 
-         #conf_level >= 0.0
-         #month %in% c( 'Jul', 'Aug'), # meetingdate >= '2026-06-11', #bf_prob_5 > bf_prob_60
-         ) %>%
+  filter(!racecode %in% c('GA', 'S', 'W', 'E', 'X', 'IA', 'P')) %>%
   mutate(bf_firm=ifelse(bf_prob_5 > bf_prob_60, 1, 0),
          bf_int = sim_ints[i],
          sim_n = j,

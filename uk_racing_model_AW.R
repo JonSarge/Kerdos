@@ -60,15 +60,15 @@ model_vars = c(
   'weightcarried',
   'horseage',
   'daysoff',
-  #'sb_m',
+  'sb_m',
   'bf_prob_60',
   'bf_prob_60_rank',
-  #'raceclass',
+  'raceclass',
   'pace_pred',
   'jockey_rating_top',
   'trainer_rating_top',
-  'bf_prob_run1_fluc',
-  'coursename'
+  'bf_prob_run1_fluc'
+  #'coursename'
   #'bf_prob_60_5'
   #'field_size',
   #'racecode'
@@ -102,7 +102,7 @@ model_data <- pre_model_data %>%
 model_formula = as.formula(paste(target_var, '~', paste(model_vars, collapse = " + ")))
 
 # train/test dates
-train_date_start = '2024-07-01'
+train_date_start = '2024-01-01'
 test_date_start = '2026-09-01'   # run from 1st June with training data up to 30th May
 test_date_end = '2026-12-31'
 

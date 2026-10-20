@@ -102,8 +102,10 @@
   recipe_ml <- recipe(model_formula, data = train_data) %>%
     # Create dummy variables
     step_dummy(all_nominal_predictors(), one_hot = TRUE) %>%
-    # interaction terms
-    #step_interact(terms = ~ draw_relative:distance_m) %>%
+    # Interactions between numeric features (pairwise)
+    # step_interact(
+    #   terms = ~ pace:distance_m + pace:draw_relative + distance_m:draw_relative
+    # ) %>%
     # Remove zero variance predictors
     step_zv(all_predictors()) %>%
     # Normalize numeric predictors

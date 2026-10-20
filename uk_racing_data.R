@@ -204,6 +204,8 @@ gb_flat_all_cols <- gb_racing_sql %>%
          positionofficial > 0 # remove DNF
   ) %>%
   
+  unique() %>%
+  
   # add relevant vars (win, profit etc)
   mutate(meetingdate=as.Date(scheduledtimeofracegmt),
          year=year(meetingdate),
@@ -382,7 +384,7 @@ i = 1
 
 # generate pre-model df with ratings adj's
 pre_model_data <- gb_flat_all_cols %>%
-  # barrier pos e.g. 1_3 = inside, 10+ = wide etc
+   # barrier pos e.g. 1_3 = inside, 10+ = wide etc
   mutate(across(all_of(factor_vars), ~fct(.))) %>%
   # ESTIMATE MISSING K/TF RATINGS:
   mutate(kerdos_rating = case_when(  # kerdos rating w/ estimates for NA's
@@ -414,6 +416,7 @@ pre_model_data <- gb_flat_all_cols %>%
          jockey_rating_na=as.factor(ifelse(is.na(Rating_Jockey), 1, 0))) %>%
   # join flucs data
   left_join(., market_data %>% select(-scheduledtimeofracegmt), by=c('raceid', 'horsecode')) %>%
+  unique() %>%
   # market features
   mutate(bsp_5=ifelse(is.na(bsp_5), bsp_60, bsp_5), # correction for a few blank bsp-5 prices
          bf_prob_60 = 1/bsp_60,

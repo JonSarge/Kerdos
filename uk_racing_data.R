@@ -471,7 +471,7 @@ pre_model_data <- gb_flat_all_cols %>%
         # get relevant bf prob @ int i
         bf_prob = 1 / bf_price, 
         # adj run1 fluc for bf prob
-        bf_prob_run1_fluc = bf_prob - run1_bsp_prob, # /run1_bsp_prob,
+        bf_prob_run1_fluc = (bf_prob - run1_bsp_prob)^2,
         bf_prob_run1_fluc = ifelse(is.na(bf_prob_run1_fluc)|is.infinite(bf_prob_run1_fluc), 0, bf_prob_run1_fluc),
         # adjust profit for bf price
         betfairwinsp = bf_price # bsp_0 * 0.0 + bsp_60 * 1.0

@@ -60,17 +60,17 @@ model_vars = c(
   'weightcarried',
   'horseage',
   'daysoff',
-  #'sb_m',
+  'sb_m',
   'bf_prob_60',
   'bf_prob_60_rank',
   #'raceclass',
   'pace_pred',
   'jockey_rating_top',
   'trainer_rating_top',
-  'bf_prob_run1_fluc'
-  #'coursename'
-  #'bf_prob_60_5'
-  #'field_size',
+  #'bf_prob_run1_fluc',
+  #'coursename',
+  'bf_prob_60_5'
+ # 'field_size'
   #'racecode'
   )
 
@@ -91,11 +91,11 @@ model_data <- pre_model_data %>%
   filter(!raceid %in% ratings_remove$raceid, # ADD 1-2 K=NULL RACES BACK IN
          !(preraceadjustedrating >= 70 & kerdos_rating < 30), # fix this in racing data script
          racesurfacename == 'All Weather',
-         raceclass %in% c(3:6), # Separate model for C1 races
+         raceclass %in% c(4:6), # Separate model for C1 races
          !is.na(raceclass),
          !is.na(pace_pred), # FIX THIS!!!
          !is.na(bf_prob_60),
-         numberofrunners >= 3
+         numberofrunners >= 4
   ) %>% unique()
 
 # model formula
@@ -136,7 +136,7 @@ loss_reduction = 0.01
 # run predictions off saved files
 savedObjPreds = 0
 if(savedObjPreds==1) savedWinprobObj = 'gb_AW_winprobs_2026-10-08.rds' # edit obj name here
-source('uk_racing_model_tune.R') # xbg tuning script
+source('uk_racing_model_tune_v1.R') # xbg tuning script
 
 #### generate results ####
 test_pnl_dat <- pnl_df(c(1:4)) %>%
@@ -159,7 +159,7 @@ test_pnl_dat_nas <- test_pnl_dat %>%
   select(raceid, where(~ any(is.na(.))))       # keep raceid + any col with an NA
 
 # pnl tables
-conf_levels = c(0, 0.04, 0.08)
+conf_levels = c(0, 0.04, 0.09)
 for(j in 1:length(conf_levels)){
   mins = c(0, conf_levels[j], 0.1) # exp val; conf level; winprob min
   print(cbind(pnl_table(test_pnl_dat, c( 'surface', 'bsp_index_all' ), mins[1], mins[2], mins[3]), conf=conf_levels[j]))
@@ -176,6 +176,12 @@ print(pnl_table(test_pnl_dat, c( 'surface', 'bf_firm' ), 0, 0, 0.1)) # flucs
 sim_int_list[[length(sim_int_list)+1]] = test_pnl_dat
 message("Run seed: ", seed_val) 
 } # j sim loop
+
+
+
+
+
+
 #} # market int i loop
 
 

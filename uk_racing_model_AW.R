@@ -60,10 +60,10 @@ model_vars = c(
   'weightcarried',
   'horseage',
   'daysoff',
-  'sb_m',
+  #'sb_m',
   'bf_prob_60',
   'bf_prob_60_rank',
-  'raceclass',
+  #'raceclass',
   'pace_pred',
   'jockey_rating_top',
   'trainer_rating_top',
@@ -95,22 +95,23 @@ model_data <- pre_model_data %>%
          !is.na(raceclass),
          !is.na(pace_pred), # FIX THIS!!!
          !is.na(bf_prob_60),
-         numberofrunners >= 4
+         numberofrunners >= 3
   ) %>% unique()
 
 # model formula
 model_formula = as.formula(paste(target_var, '~', paste(model_vars, collapse = " + ")))
 
 # train/test dates
-train_date_start = '2024-01-01'
-test_date_start = '2026-09-01'   # run from 1st June with training data up to 30th May
+train_date_start = '2025-01-01'
+test_date_start = '2026-08-01'   # run from 1st June with training data up to 30th May
 test_date_end = '2026-12-31'
 
 # training sample w final filtering
 train_data <- model_data %>% 
   filter(meetingdate >= train_date_start,
          meetingdate < test_date_start,
-         racecode %in% c('I'), # low quality/sample races    #kerdos_rating_rank %in% c(1:6)
+         racecode %in% c('I'), # low quality/sample races    
+         #kerdos_rating_rank %in% c(1:6)
          ) %>%
   select(raceid, meetingdate, all_of(model_vars), all_of(target_var)) # final select
 
@@ -143,7 +144,9 @@ test_pnl_dat <- pnl_df(c(1:4)) %>%
          Rating_Jockey, Rating_Trainer, -winclass, goingabbrev) %>%
   relocate(starts_with('betfairwin'), .before=winprob) %>%
   rename(surface=racesurfacename) %>%
-  filter(!racecode %in% c('GA', 'S', 'W', 'E', 'X', 'IA', 'P')) %>%
+  filter(!racecode %in% c('GA', 'S', 'W', 'E', 'X', 'IA', 'P'),
+         #month != 'Jul'
+         ) %>%
   mutate(bf_firm=ifelse(bf_prob_5 > bf_prob_60, 1, 0),
          bf_int = sim_ints[i],
          sim_n = j,

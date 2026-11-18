@@ -37,7 +37,7 @@ seed_val <- as.integer(Sys.time())
 registerDoRNG(seed_val)
 set.seed(seed_val)
 
-loadNewData = 1
+loadNewData = 0
 
 #### import data  preprocess ####
 
@@ -63,14 +63,15 @@ model_vars = c(
   'bf_prob_60_rank',
   'bf_prob_run1_fluc',
   'bf_prob_60_5',
-  'pace_pred'
-  #'raceclass',
-  #'racetype'
+  'pace_pred',
+  'raceclass',
+  'racetype',
+  'jockey_rating_top',
+  'trainer_rating_top'
   #'coursename',
-  #'jockey_rating_top',
-  #'trainer_rating_top',
-  # 'category_blended_score',
-  # 'field_size'
+  #'goingabbrev'
+  #'category_blended_score'
+  #'field_size'
   #'racecode'
   )
 
@@ -90,11 +91,12 @@ for(j in 1:sim_n){
 model_data <- pre_model_data %>%  
   filter(!raceid %in% ratings_remove$raceid, # ADD 1-2 K=NULL RACES BACK IN
          !(preraceadjustedrating >= 70 & kerdos_rating < 30), # fix this in racing data script
-         racesurfacename == 'Turf',
-         raceclass %in% c(1:5), # Separate model for C1 races
-         numberofrunners >= 4,
+         raceclass %in% c(4:5), # Separate model for C1 races
+         numberofrunners >= 5,
          !is.na(bf_prob_60), # A few missing from Apr 2024
-         !is.na(kerdos_rating_z) # INVESTIGATE!!!
+         !is.na(kerdos_rating_z), # INVESTIGATE!!!
+         !is.na(pace_pred),
+         !is.na(positionofficial)
   ) %>% unique()
 
 # model formula
@@ -102,14 +104,15 @@ model_formula = as.formula(paste(target_var, '~', paste(model_vars, collapse = "
 
 # train/test dates
 train_date_start = '2024-01-01'
-test_date_start = '2025-04-01'   # run from 1st June with training data up to 30th May
+test_date_start = '2026-01-01'   # run from 1st June with training data up to 30th May
 test_date_end = '2026-12-31'
 
 # training sample w final filtering
 train_data <- model_data %>% 
   filter(meetingdate >= train_date_start,
          meetingdate < test_date_start,
-         racecode %in% c('I'), # low quality/sample races    
+         #kerdos_rating_rank %in% c(1:6)
+         #racecode %in% c('I', 'IA'), # low quality/sample races  
          ) %>%
   select(raceid, meetingdate, all_of(model_vars), all_of(target_var)) # final select
 
@@ -137,12 +140,12 @@ if(savedObjPreds==1) savedWinprobObj = 'gb_AW_winprobs_2026-10-08.rds' # edit ob
 source('uk_racing_model_tune_v1.R') # xbg tuning script
 
 #### generate results ####
-test_pnl_dat <- pnl_df(c(1:6)) %>%
+test_pnl_dat <- pnl_df(c(1:4)) %>%
   select(all_of(race_vars), year, month, all_of(model_vars), c(win:conf_level), 
          -winclass, goingabbrev) %>% # Rating_Jockey, Rating_Trainer, 
   relocate(starts_with('betfairwin'), .before=winprob) %>%
   rename(surface=racesurfacename) %>%
-  filter(racecode == 'I'  #!racecode %in% c('GA', 'S', 'W', 'E', 'X', 'IA', 'P'),
+  filter(racecode %in% c('I', 'IA')  #!racecode %in% c('GA', 'S', 'W', 'E', 'X', 'IA', 'P'),
          ) %>%
   mutate(bf_firm=ifelse(bf_prob_5 > bf_prob_60, 1, 0),
          bf_int = sim_ints[i],
@@ -161,20 +164,19 @@ for(j in 1:length(conf_levels)){
   mins = c(0, conf_levels[j], 0.1) # exp val; conf level; winprob min
   print(cbind(pnl_table(test_pnl_dat, c( 'surface', 'bsp_index_all' ), mins[1], mins[2], mins[3]), conf=conf_levels[j]))
 }
-print(pnl_table(test_pnl_dat, c( 'surface', 'year', 'month' ), 0, 0.0, 0.1)) # months
-print(pnl_table(test_pnl_dat, c( 'surface', 'bsp_index', 'bsp_bin' ), 0, 0.0, 0.1)) # bsp bins
-print(pnl_table(test_pnl_dat, c( 'surface', 'winprob_rank' ), 0, 0, 0.1)) # winprob rank
-print(pnl_table(test_pnl_dat, c( 'surface', 'raceclass' ), 0, 0, 0.1)) # winprob rank
-print(pnl_table(test_pnl_dat, c( 'surface', 'racecode'), 0, 0, 0.1)) # winprob rank
-print(pnl_table(test_pnl_dat, c( 'surface', 'bsp_index_all' ), 0, 0, 0.1)) # overall
-print(pnl_table(test_pnl_dat, c( 'surface', 'bf_firm' ), 0, 0, 0.1)) # flucs
+print(pnl_table(test_pnl_dat, c( 'year', 'month' ), 0, 0.0, 0.1)) # months
+print(pnl_table(test_pnl_dat, c( 'bsp_index', 'bsp_bin' ), 0, 0.0, 0.1)) # bsp bins
+print(pnl_table(test_pnl_dat, c( 'winprob_rank' ), 0, 0, 0.1)) # winprob rank
+print(pnl_table(test_pnl_dat, c( 'raceclass' ), 0, 0, 0.1)) # winprob rank
+print(pnl_table(test_pnl_dat, c( 'racecode'), 0, 0, 0.1)) # winprob rank
+print(pnl_table(test_pnl_dat, c( 'bsp_index_all' ), 0, 0, 0.1)) # overall
+print(pnl_table(test_pnl_dat, c( 'bf_firm' ), 0, 0, 0.1)) # flucs
 
 # list all test_pnl df's
 sim_int_list[[length(sim_int_list)+1]] = test_pnl_dat
 message("Run seed: ", seed_val) 
+
 } # j sim loop
-
-
 
 
 
@@ -182,22 +184,6 @@ message("Run seed: ", seed_val)
 #} # market int i loop
 
 
-
-# compare test pnl versions
-test_pnl_comparison <- sim_int_list %>%
-  bind_rows() %>%
-  select(raceid, meetingdate, horsecode, horsename, numberofrunners, positionofficial, 
-         fave_price, bf_price, winprice, profit, bf_int) %>%
-  pivot_wider(
-    id_cols = c(raceid, meetingdate, horsecode, horsename, numberofrunners, positionofficial),
-    names_from = bf_int,
-    values_from = c(fave_price, bf_price, winprice, profit),
-    names_sep = "_"
-  ) %>%
-  #select(-ends_with('_0')) %>%
-  filter(!is.na(winprice_120)&!is.na(winprice_60)&!is.na(winprice_10)&!is.na(winprice_5)) %>%
-  mutate(across(starts_with('profit'), ~round(., 2)),
-         across(starts_with('winprice'), ~round(., 2)))
 
 # export results csv
 # write.csv(test_pnl_dat, paste0('test_pnl_AW_',  Sys.Date(), '.csv') , row.names=F, na='')

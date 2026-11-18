@@ -39,23 +39,30 @@ options(dplyr.summarise.inform = FALSE); options(scipen=99)
 
 
 # load relevant raw Kerdos data (pre-feature engineering)
-if(!exists('gb_racing_sql')){
-  # SQL connection
-  kon <- dbConnect(
-    MariaDB(),
-    user     = "avnadmin",
-    password = "AVNS_hiTM-DHel0T90WLNRQx",
-    dbname   = "master-db",
-    host     = "mysql-20d0ecf2-jonsargent15-c8e7.c.aivencloud.com",
-    port     = 24081
-  )
-  # get sql data
-  gb_racing_sql <- dbGetQuery(kon, "select distinct * from gb_racing_data where scheduledtimeofracegmt >= '2024-01-01'")
-}
+# if(!exists('gb_racing_sql')){
+#   # SQL connection
+#   kon <- dbConnect(
+#     MariaDB(),
+#     user     = "avnadmin",
+#     password = "AVNS_hiTM-DHel0T90WLNRQx",
+#     dbname   = "master-db",
+#     host     = "mysql-20d0ecf2-jonsargent15-c8e7.c.aivencloud.com",
+#     port     = 24081
+#   )
+#   # get sql data
+#   gb_racing_sql <- dbGetQuery(kon, "select distinct * from gb_racing_data where scheduledtimeofracegmt >= '2024-01-01'")
+# }
 
 # load csv with all data then cull cols for final rda save
+
+vars <- readLines("col_names.txt")
+
 # gb_racing_data_nh_all <- read.csv('gb_racing_data_nh.csv')
-# gb_racing_data_nh <- gb_racing_data_nh_all %>% select(names(gb_racing_sql), bsp_60, bsp_10, bsp_5, sb_o, sb_m) 
+# gb_racing_data_nh <- gb_racing_data_nh_all %>% 
+#   bind_rows(., nh_output) %>%
+#   select(all_of(vars), 
+#          bsp_60, bsp_10, bsp_5, sb_o, 
+#          sb_m) 
 # save(gb_racing_data_nh, file='gb_racing_data_nh.rda')
 
 # load raw data
@@ -100,48 +107,48 @@ jockey_rating_mins <- jockey_ratings %>%
 
 
 # bsp data
-bsp_data_old <- flucs_data %>%
-  filter(!is.na(horsecode)) %>%
-  select(raceid, scheduledtimeofracegmt, horsecode, bsp_60, bsp_10, bsp_5)
-# extract market $ data from recent
-bsp_data_recent <- gb_data_recent_1 %>%
-  select(raceid, scheduledtimeofracegmt, horsecode, bsp_60, bsp_10, bsp_5)
-# bind old & new
-bsp_data <- rbind(bsp_data_old, bsp_data_recent)
-# check dupes
-bsp_data %>% count(raceid, horsecode) %>% filter(n>1)
-# check NA's
-bsp_60_na <- bsp_data %>% filter(is.na(bsp_60))
+# bsp_data_old <- flucs_data %>%
+#   filter(!is.na(horsecode)) %>%
+#   select(raceid, scheduledtimeofracegmt, horsecode, bsp_60, bsp_10, bsp_5)
+# # extract market $ data from recent
+# bsp_data_recent <- gb_data_recent_1 %>%
+#   select(raceid, scheduledtimeofracegmt, horsecode, bsp_60, bsp_10, bsp_5)
+# # bind old & new
+# bsp_data <- rbind(bsp_data_old, bsp_data_recent)
+# # check dupes
+# bsp_data %>% count(raceid, horsecode) %>% filter(n>1)
+# # check NA's
+# bsp_60_na <- bsp_data %>% filter(is.na(bsp_60))
 
 # bookies data
-bookies_data_1 <- flucs_data %>%
-  filter(!is.na(horsecode)) %>%
-  select(raceid, scheduledtimeofracegmt, horsecode, starts_with('sb_'))
-# updated data
-bookies_data_2 <- read.csv('sb_output.csv') %>% select(-c(meetingdate, coursename))
-# join and pre old data
-bookies_data_old <- bookies_data_1 %>%
-  left_join(., bookies_data_2, by=c('raceid', 'horsecode'), suffix=c('', '_1')) %>%
-  mutate(sb_o = coalesce(sb_o_1, sb_o),
-         sb_m = coalesce(sb_m_1, sb_m),
-         sb_m=ifelse(is.na(sb_m), sb_o, sb_m)) %>%
-  select(-ends_with('_1'))
-# get recent data
-bookies_data_recent <- gb_data_recent_1 %>%
-  select(raceid, scheduledtimeofracegmt, horsecode, starts_with('sb_')) %>%
-  mutate(sb_m=ifelse(is.na(sb_m), sb_o, sb_m))
-# join old & recent
-bookies_data <- rbind(bookies_data_old, bookies_data_recent) %>% select(-scheduledtimeofracegmt)
-# check for dupes
-bookies_data %>% count(raceid, horsecode) %>% filter(n>1)
-# check NA's
-bookies_na <- bookies_data %>% filter(is.na(sb_m))
-
-# rbind this to flucs data old
-market_data <- bsp_data %>% unique() %>%
-  left_join(., bookies_data, by=c('raceid', 'horsecode'))
-  
-  
+# bookies_data_1 <- flucs_data %>%
+#   filter(!is.na(horsecode)) %>%
+#   select(raceid, scheduledtimeofracegmt, horsecode, starts_with('sb_'))
+# # updated data
+# bookies_data_2 <- read.csv('sb_output.csv') %>% select(-c(meetingdate, coursename))
+# # join and pre old data
+# bookies_data_old <- bookies_data_1 %>%
+#   left_join(., bookies_data_2, by=c('raceid', 'horsecode'), suffix=c('', '_1')) %>%
+#   mutate(sb_o = coalesce(sb_o_1, sb_o),
+#          sb_m = coalesce(sb_m_1, sb_m),
+#          sb_m=ifelse(is.na(sb_m), sb_o, sb_m)) %>%
+#   select(-ends_with('_1'))
+# # get recent data
+# bookies_data_recent <- gb_data_recent_1 %>%
+#   select(raceid, scheduledtimeofracegmt, horsecode, starts_with('sb_')) %>%
+#   mutate(sb_m=ifelse(is.na(sb_m), sb_o, sb_m))
+# # join old & recent
+# bookies_data <- rbind(bookies_data_old, bookies_data_recent) %>% select(-scheduledtimeofracegmt)
+# # check for dupes
+# bookies_data %>% count(raceid, horsecode) %>% filter(n>1)
+# # check NA's
+# bookies_na <- bookies_data %>% filter(is.na(sb_m))
+# 
+# # rbind this to flucs data old
+# market_data <- bsp_data %>% unique() %>%
+#   left_join(., bookies_data, by=c('raceid', 'horsecode'))
+#   
+#   
 
 
 
@@ -150,7 +157,7 @@ market_data <- bsp_data %>% unique() %>%
 # class ranks
 class_rankings_old <- read.csv('gb_racing_raceclass.csv')
 # class rank group summary
-class_ranking_groups <- read.csv("class_ranks.csv", comment.char="#", 
+class_ranking_groups <- read.csv("class_ranks.csv", comment.char="#",
                         fileEncoding = "latin1")
 
 class_ranking_groups_fill <- class_ranking_groups %>%
@@ -206,7 +213,8 @@ gb_jumps_all_cols <- gb_racing_data_nh %>%
   # primary model filters
   filter(countrycode=='GBR',
          racetype %in% c('Chase', 'Hurdle'),
-         positionofficial > 0 # remove DNF
+         !is.na(betfairwinsp)
+         #positionofficial > 0 # remove DNF
   ) %>%
   
   unique() %>%
@@ -411,14 +419,14 @@ pre_model_data <- gb_jumps_all_cols %>%
   relocate(contains('kerdos_rating'), .after=pre_race_rating_adjusted) %>%
   select(!c(all_of(na_cols), all_of(zero_cols))) %>%
   # attach jockey/trainer ratings
-  #left_join(., jockey_ratings %>% select(jockeyfullname=Jockey, Period, Rating=RATING), 
-  #          by=c('jockeyfullname', 'Period')) %>%
-  #left_join(., trainer_ratings %>% select(trainerfullname=Trainer, Period, Rating=OVERALL), 
-  #          by=c('trainerfullname', 'Period'), suffix=c('_Jockey', '_Trainer')) %>%
-  # join minimum jockey rating to replace NA's
-  #left_join(., jockey_rating_mins, by='jockeyfullname') %>%
-  #mutate(jockey_rating = ifelse(is.na(Rating_Jockey), Rating_Jockey_min, Rating_Jockey),
-  #       jockey_rating_na=as.factor(ifelse(is.na(Rating_Jockey), 1, 0))) %>%
+  left_join(., jockey_ratings %>% select(jockeyfullname=Jockey, Period, Rating=RATING),
+           by=c('jockeyfullname', 'Period')) %>%
+  left_join(., trainer_ratings %>% select(trainerfullname=Trainer, Period, Rating=OVERALL),
+           by=c('trainerfullname', 'Period'), suffix=c('_Jockey', '_Trainer')) %>%
+  #join minimum jockey rating to replace NA's
+  left_join(., jockey_rating_mins, by='jockeyfullname') %>%
+  mutate(jockey_rating = ifelse(is.na(Rating_Jockey), Rating_Jockey_min, Rating_Jockey),
+        jockey_rating_na=as.factor(ifelse(is.na(Rating_Jockey), 1, 0))) %>%
   # join flucs data
   #left_join(., market_data %>% select(-scheduledtimeofracegmt), by=c('raceid', 'horsecode')) %>%
   unique() %>%
@@ -442,24 +450,24 @@ pre_model_data <- gb_jumps_all_cols %>%
          runners_under_5=sum(bsp_60<5),
          raceclass_5_6=fct(ifelse(raceclass %in% c(5, 6), 1, 0))) %>% ungroup() %>%
     # join class data
-  #left_join(., class_rankings_old %>% select(raceid, category_rank, category_blended_score), by='raceid') %>%
-  #left_join(., class_ranking_groups_fill, by=c('racecode', 'raceclass', 'age_category')) %>% 
-  mutate(#category_rank=ifelse(is.na(category_rank), rank_median, category_rank),
-         # category_blended_score=ifelse(is.na(category_blended_score), blended_score_ave, category_blended_score),
-         # jockey_rating_bin=round(jockey_rating/10),
-         # jockey_rating_bin=ifelse(is.na(jockey_rating_bin), 5, jockey_rating_bin),
-         # jockey_rating_top=case_when(
-         #   jockey_rating_bin %in% c(9:10) ~ 1,
-         #   jockey_rating_bin %in% c(5:8) ~ 2,
-         #   jockey_rating_bin %in% c(1:4) ~ 3,
-         #   TRUE ~ 3),
-         # trainer_rating_bin=round(Rating_Trainer/10),
-         # trainer_rating_bin=ifelse(is.na(trainer_rating_bin), 5, trainer_rating_bin),
-         # trainer_rating_top=case_when(
-         #   trainer_rating_bin %in% c(8:10) ~ 1,
-         #   trainer_rating_bin %in% c(5:7) ~ 2,
-         #   trainer_rating_bin %in% c(1:4) ~ 3,
-         #   TRUE ~ 3),
+  left_join(., class_rankings_old %>% select(raceid, category_rank, category_blended_score), by='raceid') %>%
+  left_join(., class_ranking_groups_fill, by=c('racecode', 'raceclass', 'age_category')) %>% 
+  mutate(category_rank=ifelse(is.na(category_rank), rank_median, category_rank),
+         category_blended_score=ifelse(is.na(category_blended_score), blended_score_ave, category_blended_score),
+          jockey_rating_bin=round(jockey_rating/10),
+          jockey_rating_bin=ifelse(is.na(jockey_rating_bin), 5, jockey_rating_bin),
+          jockey_rating_top=case_when(
+            jockey_rating_bin %in% c(9:10) ~ 1,
+            jockey_rating_bin %in% c(5:8) ~ 2,
+            jockey_rating_bin %in% c(1:4) ~ 3,
+            TRUE ~ 3),
+          trainer_rating_bin=round(Rating_Trainer/10),
+          trainer_rating_bin=ifelse(is.na(trainer_rating_bin), 5, trainer_rating_bin),
+          trainer_rating_top=case_when(
+            trainer_rating_bin %in% c(8:10) ~ 1,
+            trainer_rating_bin %in% c(5:7) ~ 2,
+            trainer_rating_bin %in% c(1:4) ~ 3,
+            TRUE ~ 3),
          # adjust bfp_prob_60 for prices > 60 mins out
          bf_prob_60 = case_when(
           sim_ints==120 ~ 1/sb_m, 
@@ -499,96 +507,96 @@ ratings_remove <- pre_model_data %>%
   select(all_of(race_vars), pre_race_rating_adjusted, kerdos_rating, preraceadjustedrating, 
          ends_with(c('post_race_rating_adjusted', 'performancerating')))
 
-
-# check jockey/trainer NA's
-jockey_trainer_dat <- pre_model_data %>%
-  select(raceid, meetingdate, period=Period,
-         coursename, racenumber, raceclass, racecode, numberofrunners, bsp=betfairwinsp, jockeyfullname, 
-         trainerfullname, starts_with('Rating_'), jockey_rating, jockey_rating_na, -kerdos_rating_rank) 
-
-jockey_nas <- jockey_trainer_dat %>%
-  #filter(period==5) %>%
-  group_by(raceid, coursename, raceclass, racecode, numberofrunners) %>%
-  summarise(across(jockey_rating, ~sum(is.na(.x))),.groups = "drop_last") %>%
-  rename(jockey_rating_nas=jockey_rating) %>%
-  filter(jockey_rating_nas > 0)
-
-
-jockey_nas <- jockey_trainer_dat %>%
-  #filter(period==5) %>%
-  group_by(raceid, coursename, raceclass, racecode, numberofrunners) %>%
-  summarise(across(Rating_Jockey, ~sum(is.na(.x))),.groups = "drop_last") %>%
-  #filter(numberofrunners==Rating_Jockey) %>%
-  rename(jockey_rating_nas=Rating_Jockey)
-
-trainer_nas <- jockey_trainer_dat %>%
-  #filter(period==5) %>%
-  group_by(raceid, coursename, raceclass, racecode, numberofrunners) %>%
-  summarise(across(Rating_Trainer, ~sum(is.na(.x))),.groups = "drop_last") %>%
-  rename(trainer_rating_nas=Rating_Trainer)
-
-bf_nas <- pre_model_data %>% 
-  filter(is.na(bsp_60)) %>% 
-  select(raceid, meetingdate, starts_with('bsp_')) %>%
-  pull(raceid) %>% unique()
-
-
-sb_data <- pre_model_data %>% 
-  mutate(positionofficial=nm(ch(positionofficial)),
-         sb_o = coalesce(sb_o_2, sb_o_1),
-         sb_m = coalesce(sb_m_2, sb_m_1)) %>%
-  #filter(is.na(sb_m)) %>% 
-  select(raceid, meetingdate, coursename, saddlecloth, numberofrunners, positionofficial, 
-         sb_o, sb_m, bf_60=bsp_60, bf_10=bsp_10, bf_5=bsp_5, bf_0=betfairwinsp) %>%
-  unique()
-
-sb_scratchings <- sb_data %>% 
-  group_by(raceid) %>% 
-  filter(sum(is.na(bf_60)) < numberofrunners) %>%
-  mutate(scratchings = sum(is.na(positionofficial) | positionofficial == 0)) %>% ungroup() %>% 
-  relocate(scratchings, .after=numberofrunners) %>% 
-  filter(scratchings>=4 & numberofrunners > scratchings) %>% 
-  arrange(raceid, positionofficial)
-
-class_nas <- pre_model_data %>% filter(is.na(category_rank))
-
-
-# check any k-rating na's
-kerdos_rating_nas <- pre_model_data %>% filter(is.na(pre_race_rating_adjusted))
-# raceclass na's
-raceclass_nas <- pre_model_data %>% filter(is.na(raceclass))
-# run1_raceclass na's
-run1_raceclass_nas <- pre_model_data %>% filter(is.na(run1_raceclass), run1_meetingdate!='')
-# bsp NAs
-bsp_nas <- pre_model_data %>% filter(is.na(betfairwinsp))
-# run1 bsp NAs
-run1_bsp_nas <- pre_model_data %>% filter(is.na(run1_betfairwinsp))
-
-
-# get col max string lengths - compare to sql
-cols <- dbGetQuery(kon, "SHOW COLUMNS FROM gb_racing_data")
-sql_lengths <- cols %>%
-  mutate(max_length = as.integer(str_match(cols$Type, "\\((\\d+)\\)")[, 2])) %>%
-  select(-c(Type:Extra))
-string_lengths <- pre_model_data %>% 
-  summarise(across(everything(), ~max(nchar(as.character(.)), na.rm = TRUE))) %>%
-  pivot_longer(everything(), names_to = "Field", values_to = "max_length") %>%
-  left_join(., sql_lengths, by='Field', suffix=c('_R', '_SQL')) %>%
-  filter(max_length_R > max_length_SQL)
-if(nrow(string_lengths)>0) "UPDATE SQL STRING LENGTH MAX"
-
+# 
+# # check jockey/trainer NA's
+# jockey_trainer_dat <- pre_model_data %>%
+#   select(raceid, meetingdate, period=Period,
+#          coursename, racenumber, raceclass, racecode, numberofrunners, bsp=betfairwinsp, jockeyfullname, 
+#          trainerfullname, starts_with('Rating_'), jockey_rating, jockey_rating_na, -kerdos_rating_rank) 
+# 
+# jockey_nas <- jockey_trainer_dat %>%
+#   #filter(period==5) %>%
+#   group_by(raceid, coursename, raceclass, racecode, numberofrunners) %>%
+#   summarise(across(jockey_rating, ~sum(is.na(.x))),.groups = "drop_last") %>%
+#   rename(jockey_rating_nas=jockey_rating) %>%
+#   filter(jockey_rating_nas > 0)
+# 
+# 
+# jockey_nas <- jockey_trainer_dat %>%
+#   #filter(period==5) %>%
+#   group_by(raceid, coursename, raceclass, racecode, numberofrunners) %>%
+#   summarise(across(Rating_Jockey, ~sum(is.na(.x))),.groups = "drop_last") %>%
+#   #filter(numberofrunners==Rating_Jockey) %>%
+#   rename(jockey_rating_nas=Rating_Jockey)
+# 
+# trainer_nas <- jockey_trainer_dat %>%
+#   #filter(period==5) %>%
+#   group_by(raceid, coursename, raceclass, racecode, numberofrunners) %>%
+#   summarise(across(Rating_Trainer, ~sum(is.na(.x))),.groups = "drop_last") %>%
+#   rename(trainer_rating_nas=Rating_Trainer)
+# 
+# bf_nas <- pre_model_data %>% 
+#   filter(is.na(bsp_60)) %>% 
+#   select(raceid, meetingdate, starts_with('bsp_')) %>%
+#   pull(raceid) %>% unique()
+# 
+# 
+# sb_data <- pre_model_data %>% 
+#   mutate(positionofficial=nm(ch(positionofficial)),
+#          sb_o = coalesce(sb_o_2, sb_o_1),
+#          sb_m = coalesce(sb_m_2, sb_m_1)) %>%
+#   #filter(is.na(sb_m)) %>% 
+#   select(raceid, meetingdate, coursename, saddlecloth, numberofrunners, positionofficial, 
+#          sb_o, sb_m, bf_60=bsp_60, bf_10=bsp_10, bf_5=bsp_5, bf_0=betfairwinsp) %>%
+#   unique()
+# 
+# sb_scratchings <- sb_data %>% 
+#   group_by(raceid) %>% 
+#   filter(sum(is.na(bf_60)) < numberofrunners) %>%
+#   mutate(scratchings = sum(is.na(positionofficial) | positionofficial == 0)) %>% ungroup() %>% 
+#   relocate(scratchings, .after=numberofrunners) %>% 
+#   filter(scratchings>=4 & numberofrunners > scratchings) %>% 
+#   arrange(raceid, positionofficial)
+# 
+# class_nas <- pre_model_data %>% filter(is.na(category_rank))
+# 
+# 
+# # check any k-rating na's
+# kerdos_rating_nas <- pre_model_data %>% filter(is.na(pre_race_rating_adjusted))
+# # raceclass na's
+# raceclass_nas <- pre_model_data %>% filter(is.na(raceclass))
+# # run1_raceclass na's
+# run1_raceclass_nas <- pre_model_data %>% filter(is.na(run1_raceclass), run1_meetingdate!='')
+# # bsp NAs
+# bsp_nas <- pre_model_data %>% filter(is.na(betfairwinsp))
+# # run1 bsp NAs
+# run1_bsp_nas <- pre_model_data %>% filter(is.na(run1_betfairwinsp))
+# 
+# 
+# # get col max string lengths - compare to sql
+# cols <- dbGetQuery(kon, "SHOW COLUMNS FROM gb_racing_data")
+# sql_lengths <- cols %>%
+#   mutate(max_length = as.integer(str_match(cols$Type, "\\((\\d+)\\)")[, 2])) %>%
+#   select(-c(Type:Extra))
+# string_lengths <- pre_model_data %>% 
+#   summarise(across(everything(), ~max(nchar(as.character(.)), na.rm = TRUE))) %>%
+#   pivot_longer(everything(), names_to = "Field", values_to = "max_length") %>%
+#   left_join(., sql_lengths, by='Field', suffix=c('_R', '_SQL')) %>%
+#   filter(max_length_R > max_length_SQL)
+# if(nrow(string_lengths)>0) "UPDATE SQL STRING LENGTH MAX"
+# 
 
 # attach new data
-if(loadNewData == 1 & nrow(string_lengths)==0){
-  # ids stored in sql
-  stored_raceids <- dbGetQuery(kon, 'select distinct raceid from gb_racing_data')
-  # append newly added data
-  pre_model_data_sql <- pre_model_data %>% 
-    filter(!raceid %in% stored_raceids$raceid) %>% 
-    select(names(gb_racing_sql))
-  # append new data
-  if(nrow(pre_model_data_sql)>0) dbWriteTable(kon, name='gb_racing_data', value=pre_model_data_sql, append=T, row.names=F)
-}
+# if(loadNewData == 1 & nrow(string_lengths)==0){
+#   # ids stored in sql
+#   stored_raceids <- dbGetQuery(kon, 'select distinct raceid from gb_racing_data')
+#   # append newly added data
+#   pre_model_data_sql <- pre_model_data %>% 
+#     filter(!raceid %in% stored_raceids$raceid) %>% 
+#     select(names(gb_racing_sql))
+#   # append new data
+#   if(nrow(pre_model_data_sql)>0) dbWriteTable(kon, name='gb_racing_data', value=pre_model_data_sql, append=T, row.names=F)
+# }
 
 dbDisconnect(kon)
 

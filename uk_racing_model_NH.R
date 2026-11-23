@@ -66,13 +66,15 @@ model_vars = c(
   'pace_pred',
   'raceclass',
   'racetype',
-  'jockey_rating_top',
-  'trainer_rating_top'
+  'iphintsoverallpace'
+  #'won_a_race'
+  #'racecode'
+  #'jockey_rating_top',
+  #'trainer_rating_top'
   #'coursename',
   #'goingabbrev'
   #'category_blended_score'
   #'field_size'
-  #'racecode'
   )
 
 
@@ -91,12 +93,13 @@ for(j in 1:sim_n){
 model_data <- pre_model_data %>%  
   filter(!raceid %in% ratings_remove$raceid, # ADD 1-2 K=NULL RACES BACK IN
          !(preraceadjustedrating >= 70 & kerdos_rating < 30), # fix this in racing data script
-         raceclass %in% c(4:5), # Separate model for C1 races
+         raceclass %in% c(4:6), # Separate model for C1 races
          numberofrunners >= 5,
          !is.na(bf_prob_60), # A few missing from Apr 2024
          !is.na(kerdos_rating_z), # INVESTIGATE!!!
          !is.na(pace_pred),
-         !is.na(positionofficial)
+         !is.na(positionofficial),
+         #racetype == 'Hurdle'
   ) %>% unique()
 
 # model formula
@@ -111,6 +114,7 @@ test_date_end = '2026-12-31'
 train_data <- model_data %>% 
   filter(meetingdate >= train_date_start,
          meetingdate < test_date_start,
+         #between(betfairwinsp, 1.3, 100)
          #kerdos_rating_rank %in% c(1:6)
          #racecode %in% c('I', 'IA'), # low quality/sample races  
          ) %>%
@@ -170,7 +174,7 @@ print(pnl_table(test_pnl_dat, c( 'winprob_rank' ), 0, 0, 0.1)) # winprob rank
 print(pnl_table(test_pnl_dat, c( 'raceclass' ), 0, 0, 0.1)) # winprob rank
 print(pnl_table(test_pnl_dat, c( 'racecode'), 0, 0, 0.1)) # winprob rank
 print(pnl_table(test_pnl_dat, c( 'bsp_index_all' ), 0, 0, 0.1)) # overall
-print(pnl_table(test_pnl_dat, c( 'bf_firm' ), 0, 0, 0.1)) # flucs
+print(pnl_table(test_pnl_dat, c( 'racetype' ), 0, 0, 0.1)) # flucs
 
 # list all test_pnl df's
 sim_int_list[[length(sim_int_list)+1]] = test_pnl_dat

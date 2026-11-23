@@ -153,52 +153,52 @@ jockey_rating_mins <- jockey_ratings %>%
 
 
 #### class rank data prep ####
-
-# class ranks
-class_rankings_old <- read.csv('gb_racing_raceclass.csv')
-# class rank group summary
-class_ranking_groups <- read.csv("class_ranks.csv", comment.char="#",
-                        fileEncoding = "latin1")
-
-class_ranking_groups_fill <- class_ranking_groups %>%
-  group_by(race_type, raceclass, age_category) %>%
-  mutate(blended_score_ave=mean(blended_score),
-         rank_median=median(rank),
-         raceclass=as.factor(raceclass)) %>%
-  ungroup() %>%
-  select(racecode, raceclass, age_category, rank_median, blended_score_ave) %>%
-  unique()
-
-class_data <- gb_data_recent %>%
-  select(raceid, racecode, raceclass, horseage, horsegender) %>%
-  arrange(horsegender) %>%
-  group_by(raceid) %>%
-  mutate(gender=list(unique(horsegender))) %>% ungroup() %>%
-  mutate(gender = sapply(gender, paste, collapse = ", "),
-         race_type = case_when(
-           racecode == "E"  ~ "Claimer",
-           racecode == "G"  ~ "Maiden",
-           racecode == "G1" ~ "Group 1",
-           racecode == "G2" ~ "Group 2",
-           racecode == "G3" ~ "Group 3",
-           racecode == "GA" ~ "Maiden",
-           racecode == "HM" ~ "Handicap",
-           racecode == "I"  ~ "Handicap 1",
-           racecode == "IA" ~ "Handicap (Apprentice)",
-           racecode == "IM" ~ "Handicap (Amateur)",
-           racecode == "L"  ~ "Listed",
-           racecode == "P"  ~ "Novice",
-           racecode == "PA" ~ "Novice",
-           racecode == "S"  ~ "Handicap",
-           racecode == "W"  ~ "Seller",
-           racecode == "X"  ~ "Claiming Handicap",
-           racecode == "XA" ~ "Handicap",
-           TRUE ~ NA_character_
-         ),
-         )
-
-gender_combos <- class_data %>% count(gender)
-
+# 
+# # class ranks
+# class_rankings_old <- read.csv('gb_racing_raceclass.csv')
+# # class rank group summary
+# class_ranking_groups <- read.csv("class_ranks.csv", comment.char="#",
+#                         fileEncoding = "latin1")
+# 
+# class_ranking_groups_fill <- class_ranking_groups %>%
+#   group_by(race_type, raceclass, age_category) %>%
+#   mutate(blended_score_ave=mean(blended_score),
+#          rank_median=median(rank),
+#          raceclass=as.factor(raceclass)) %>%
+#   ungroup() %>%
+#   select(racecode, raceclass, age_category, rank_median, blended_score_ave) %>%
+#   unique()
+# 
+# class_data <- gb_data_recent %>%
+#   select(raceid, racecode, raceclass, horseage, horsegender) %>%
+#   arrange(horsegender) %>%
+#   group_by(raceid) %>%
+#   mutate(gender=list(unique(horsegender))) %>% ungroup() %>%
+#   mutate(gender = sapply(gender, paste, collapse = ", "),
+#          race_type = case_when(
+#            racecode == "E"  ~ "Claimer",
+#            racecode == "G"  ~ "Maiden",
+#            racecode == "G1" ~ "Group 1",
+#            racecode == "G2" ~ "Group 2",
+#            racecode == "G3" ~ "Group 3",
+#            racecode == "GA" ~ "Maiden",
+#            racecode == "HM" ~ "Handicap",
+#            racecode == "I"  ~ "Handicap 1",
+#            racecode == "IA" ~ "Handicap (Apprentice)",
+#            racecode == "IM" ~ "Handicap (Amateur)",
+#            racecode == "L"  ~ "Listed",
+#            racecode == "P"  ~ "Novice",
+#            racecode == "PA" ~ "Novice",
+#            racecode == "S"  ~ "Handicap",
+#            racecode == "W"  ~ "Seller",
+#            racecode == "X"  ~ "Claiming Handicap",
+#            racecode == "XA" ~ "Handicap",
+#            TRUE ~ NA_character_
+#          ),
+#          )
+# 
+# gender_combos <- class_data %>% count(gender)
+# 
 
 
 

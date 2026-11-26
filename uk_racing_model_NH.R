@@ -60,19 +60,20 @@ model_vars = c(
   'daysoff',
   'sb_m',
   'bf_prob_60',
-  'bf_prob_60_rank',
+  #'bf_prob_60_rank',
   'bf_prob_run1_fluc',
   'bf_prob_60_5',
   'pace_pred',
   'raceclass',
   'racetype',
-  'iphintsoverallpace'
-  #'won_a_race'
-  #'racecode'
+  'racecode',
+  'won_a_race',
+  'iphintsoverallpace',
+  'field_size'
+  #'goingabbrev'
   #'jockey_rating_top',
   #'trainer_rating_top'
   #'coursename',
-  #'goingabbrev'
   #'category_blended_score'
   #'field_size'
   )
@@ -94,7 +95,7 @@ model_data <- pre_model_data %>%
   filter(!raceid %in% ratings_remove$raceid, # ADD 1-2 K=NULL RACES BACK IN
          !(preraceadjustedrating >= 70 & kerdos_rating < 30), # fix this in racing data script
          raceclass %in% c(4:6), # Separate model for C1 races
-         numberofrunners >= 5,
+         numberofrunners >= 4,
          !is.na(bf_prob_60), # A few missing from Apr 2024
          !is.na(kerdos_rating_z), # INVESTIGATE!!!
          !is.na(pace_pred),
@@ -107,7 +108,7 @@ model_formula = as.formula(paste(target_var, '~', paste(model_vars, collapse = "
 
 # train/test dates
 train_date_start = '2024-01-01'
-test_date_start = '2026-01-01'   # run from 1st June with training data up to 30th May
+test_date_start = '2026-02-01'   # run from 1st June with training data up to 30th May
 test_date_end = '2026-12-31'
 
 # training sample w final filtering
@@ -141,7 +142,7 @@ loss_reduction = 0.01
 # run predictions off saved files
 savedObjPreds = 0
 if(savedObjPreds==1) savedWinprobObj = 'gb_AW_winprobs_2026-10-08.rds' # edit obj name here
-source('uk_racing_model_tune_v1.R') # xbg tuning script
+source('uk_racing_model_tune.R') # xbg tuning script
 
 #### generate results ####
 test_pnl_dat <- pnl_df(c(1:4)) %>%
@@ -149,7 +150,8 @@ test_pnl_dat <- pnl_df(c(1:4)) %>%
          -winclass, goingabbrev) %>% # Rating_Jockey, Rating_Trainer, 
   relocate(starts_with('betfairwin'), .before=winprob) %>%
   rename(surface=racesurfacename) %>%
-  filter(racecode %in% c('I', 'IA')  #!racecode %in% c('GA', 'S', 'W', 'E', 'X', 'IA', 'P'),
+  filter(racecode %in% c('I', 'IA'),  #!racecode %in% c('GA', 'S', 'W', 'E', 'X', 'IA', 'P'),
+         racetype == 'Hurdle'
          ) %>%
   mutate(bf_firm=ifelse(bf_prob_5 > bf_prob_60, 1, 0),
          bf_int = sim_ints[i],

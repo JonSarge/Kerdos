@@ -379,7 +379,8 @@ hist(tf_ratings$preraceadjustedrating, main='Timeform Master Rating', xlab='Rati
 factor_vars = c('racenumber', 'draw', 'draw_bin', 'positionofficial', 'horsegender', 'distancetype', 'racetype', 'raceclass',  
                 'racesurfacename',  'racecode', 'going',  'iphintsoverallpace', 'pacemapdata', 'field_size',
                 'jockeycode', 'jockeyfullname', 'trainercode', 'trainerfullname', 'ratingstars', 'rating123', 'significantimprover', 'jockeyinform', 
-                'toprated', 'hottrainer', 'eligibilitysexlimit', 'preracemastersymbol', 'hotrace', 'pre_race_rating_symbol_for_16'
+                'toprated', 'hottrainer', 'eligibilitysexlimit', 'preracemastersymbol', 'hotrace', 'pre_race_rating_symbol_for_16',
+                'won_a_race'
                 )  
 
 # CHECK all NA/Zero columns
@@ -450,10 +451,10 @@ pre_model_data <- gb_jumps_all_cols %>%
          runners_under_5=sum(bsp_60<5),
          raceclass_5_6=fct(ifelse(raceclass %in% c(5, 6), 1, 0))) %>% ungroup() %>%
     # join class data
-  left_join(., class_rankings_old %>% select(raceid, category_rank, category_blended_score), by='raceid') %>%
-  left_join(., class_ranking_groups_fill, by=c('racecode', 'raceclass', 'age_category')) %>% 
-  mutate(category_rank=ifelse(is.na(category_rank), rank_median, category_rank),
-         category_blended_score=ifelse(is.na(category_blended_score), blended_score_ave, category_blended_score),
+  #left_join(., class_rankings_old %>% select(raceid, category_rank, category_blended_score), by='raceid') %>%
+  #left_join(., class_ranking_groups_fill, by=c('racecode', 'raceclass', 'age_category')) %>% 
+  mutate(#category_rank=ifelse(is.na(category_rank), rank_median, category_rank),
+         #category_blended_score=ifelse(is.na(category_blended_score), blended_score_ave, category_blended_score),
           jockey_rating_bin=round(jockey_rating/10),
           jockey_rating_bin=ifelse(is.na(jockey_rating_bin), 5, jockey_rating_bin),
           jockey_rating_top=case_when(

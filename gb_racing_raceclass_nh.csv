@@ -1,0 +1,188 @@
+racetype,racecode,race_desc,raceclass,age_category,sex_category,n_races,blended_score,score_source,own_rank
+Hurdle,E,Claimer,4,Older (4yo+),Open,16,0.231950309,exact,43
+Hurdle,E,Claimer,5,Older (4yo+),Open,1,-0.247462523,"own data (<12 races, low confidence)",71
+Hurdle,G,Maiden/Novice,1,Older (4yo+),Fillies & Mares,2,1.756492224,"own data (<12 races, low confidence)",8
+Hurdle,G,Maiden/Novice,2,3yo-only,Open,18,0.389148845,exact,33
+Hurdle,G,Maiden/Novice,2,4yo-only,Open,14,0.864784719,exact,22
+Hurdle,G,Maiden/Novice,2,Older (4yo+),Open,20,1.069368924,exact,19
+Hurdle,G,Maiden/Novice,3,3yo-only,Open,14,0.104377409,exact,50
+Hurdle,G,Maiden/Novice,3,4yo-only,Open,23,0.244321349,exact,41
+Hurdle,G,Maiden/Novice,3,"Juvenile (age-restricted, combined)",Fillies only,1,0.295765264,"own data (<12 races, low confidence)",39
+Hurdle,G,Maiden/Novice,3,Older (4yo+),Open,4,0.463129682,"own data (<12 races, low confidence)",31
+Hurdle,G,Maiden/Novice,4,3yo-only,Fillies only,15,-0.251052638,exact,72
+Hurdle,G,Maiden/Novice,4,3yo-only,Open,132,-0.366968005,exact,80
+Hurdle,G,Maiden/Novice,4,4yo-only,Open,73,-0.023272045,exact,61
+Hurdle,G,Maiden/Novice,4,"Juvenile (age-restricted, combined)",Fillies only,9,0.029945391,"own data (<12 races, low confidence)",59
+Hurdle,G,Maiden/Novice,4,Older (4yo+),Fillies & Mares,2,0.06793179,"own data (<12 races, low confidence)",55
+Hurdle,G,Maiden/Novice,4,Older (4yo+),Open,7,0.161567739,"own data (<12 races, low confidence)",47
+Hurdle,G1,Grade 1,1,"Juvenile (age-restricted, combined)",Open,10,1.920718377,"own data (<12 races, low confidence)",4
+Hurdle,G1,Grade 1,1,Older (4yo+),Fillies & Mares,4,2.034018872,"own data (<12 races, low confidence)",3
+Hurdle,G1,Grade 1,1,Older (4yo+),Open,72,2.509111163,exact,1
+Hurdle,G2,Grade 2,1,"Juvenile (age-restricted, combined)",Open,18,1.426199365,exact,15
+Hurdle,G2,Grade 2,1,Older (4yo+),Fillies & Mares,17,1.875180145,exact,6
+Hurdle,G2,Grade 2,1,Older (4yo+),Open,103,2.136057395,exact,2
+Hurdle,G2,Grade 2,2,Older (4yo+),Fillies & Mares,1,0.629902344,"own data (<12 races, low confidence)",28
+Hurdle,H,Hunter Chase,5,Older (4yo+),Open,1,-0.278820755,"own data (<12 races, low confidence)",75
+Hurdle,I,Handicap,1,"Juvenile (age-restricted, combined)",Fillies only,5,1.546125255,"own data (<12 races, low confidence)",12
+Hurdle,I,Handicap,1,"Juvenile (age-restricted, combined)",Open,10,1.585328971,"own data (<12 races, low confidence)",11
+Hurdle,I,Handicap,1,Older (4yo+),Fillies & Mares,6,1.521290984,"own data (<12 races, low confidence)",13
+Hurdle,I,Handicap,1,Older (4yo+),Open,64,1.892592291,exact,5
+Hurdle,I,Handicap,2,4yo-only,Open,14,0.733140609,exact,26
+Hurdle,I,Handicap,2,Older (4yo+),Fillies & Mares,35,0.805241557,exact,24
+Hurdle,I,Handicap,2,Older (4yo+),Open,383,1.379767397,exact,16
+Hurdle,I,Handicap,3,"Juvenile (age-restricted, combined)",Open,5,0.36963052,"own data (<12 races, low confidence)",35
+Hurdle,I,Handicap,3,Older (4yo+),Fillies & Mares,57,0.779049976,exact,25
+Hurdle,I,Handicap,3,Older (4yo+),Open,704,1.101713563,exact,18
+Hurdle,I,Handicap,4,"Juvenile (age-restricted, combined)",Open,5,0.320086194,"own data (<12 races, low confidence)",38
+Hurdle,I,Handicap,4,Older (4yo+),Fillies & Mares,204,0.323947207,exact,37
+Hurdle,I,Handicap,4,Older (4yo+),Open,1483,0.396771198,exact,32
+Hurdle,I,Handicap,5,"Juvenile (age-restricted, combined)",Open,1,-0.216789542,"own data (<12 races, low confidence)",68
+Hurdle,I,Handicap,5,Older (4yo+),Fillies & Mares,364,-0.593737635,exact,86
+Hurdle,I,Handicap,5,Older (4yo+),Open,1813,-0.569229873,exact,85
+Hurdle,IA,Handicap (Apprentice/Conditional),2,Older (4yo+),Open,8,0.836971815,"own data (<12 races, low confidence)",23
+Hurdle,IA,Handicap (Apprentice/Conditional),3,Older (4yo+),Open,42,0.927276169,exact,21
+Hurdle,IA,Handicap (Apprentice/Conditional),4,Older (4yo+),Fillies & Mares,5,0.23768042,"own data (<12 races, low confidence)",42
+Hurdle,IA,Handicap (Apprentice/Conditional),4,Older (4yo+),Open,182,0.262376568,exact,40
+Hurdle,IA,Handicap (Apprentice/Conditional),5,Older (4yo+),Fillies & Mares,21,-0.461214833,exact,83
+Hurdle,IA,Handicap (Apprentice/Conditional),5,Older (4yo+),Open,319,-0.506037202,exact,84
+Hurdle,IM,Handicap (Amateur),3,Older (4yo+),Open,3,0.488809455,"own data (<12 races, low confidence)",30
+Hurdle,IM,Handicap (Amateur),4,Older (4yo+),Open,37,0.205442559,exact,44
+Hurdle,IM,Handicap (Amateur),5,Older (4yo+),Open,52,-0.448817025,exact,82
+Hurdle,L,Listed,1,"Juvenile (age-restricted, combined)",Fillies only,9,1.343941403,"own data (<12 races, low confidence)",17
+Hurdle,L,Listed,1,"Juvenile (age-restricted, combined)",Open,10,1.489533701,"own data (<12 races, low confidence)",14
+Hurdle,L,Listed,1,Older (4yo+),Fillies & Mares,34,1.602907239,exact,9
+Hurdle,L,Listed,1,Older (4yo+),Mares only,6,1.602661891,"own data (<12 races, low confidence)",10
+Hurdle,L,Listed,1,Older (4yo+),Open,26,1.816066779,exact,7
+Hurdle,L,Listed,4,Older (4yo+),Open,1,0.168653589,"own data (<12 races, low confidence)",46
+Hurdle,P,Novice,2,"Juvenile (age-restricted, combined)",Open,5,0.560095195,"own data (<12 races, low confidence)",29
+Hurdle,P,Novice,2,Older (4yo+),Fillies & Mares,8,0.644673069,"own data (<12 races, low confidence)",27
+Hurdle,P,Novice,2,Older (4yo+),Open,55,0.982117199,exact,20
+Hurdle,P,Novice,3,"Juvenile (age-restricted, combined)",Fillies only,3,0.064729887,"own data (<12 races, low confidence)",57
+Hurdle,P,Novice,3,"Juvenile (age-restricted, combined)",Open,1,0.38749007,"own data (<12 races, low confidence)",34
+Hurdle,P,Novice,3,Older (4yo+),Fillies & Mares,35,0.043058445,exact,58
+Hurdle,P,Novice,3,Older (4yo+),Open,209,0.131214319,exact,48
+Hurdle,P,Novice,3,Young (age-capped),Open,43,0.343919187,exact,36
+Hurdle,P,Novice,4,3yo-only,Open,49,-0.278850036,exact,76
+Hurdle,P,Novice,4,4yo-only,Open,22,-0.039051409,exact,63
+Hurdle,P,Novice,4,"Juvenile (age-restricted, combined)",Fillies & Mares,9,-0.032236034,"own data (<12 races, low confidence)",62
+Hurdle,P,Novice,4,"Juvenile (age-restricted, combined)",Fillies only,16,-0.235912608,exact,70
+Hurdle,P,Novice,4,Older (4yo+),Fillies & Mares,462,-0.394617214,exact,81
+Hurdle,P,Novice,4,Older (4yo+),Mares only,5,0.179346639,"own data (<12 races, low confidence)",45
+Hurdle,P,Novice,4,Older (4yo+),Open,2094,-0.214265692,exact,67
+Hurdle,P,Novice,4,Young (age-capped),Open,104,0.072029093,exact,54
+Hurdle,P,Novice,5,Older (4yo+),Open,2,-0.303531226,"own data (<12 races, low confidence)",78
+Hurdle,PA,Novice (Cond.),4,Older (4yo+),Open,1,0.130334902,"own data (<12 races, low confidence)",49
+Hurdle,Q,National Hunt Flat (Qualifier),4,Older (4yo+),Open,10,-0.306776402,"own data (<12 races, low confidence)",79
+Hurdle,R,Other,4,Older (4yo+),Open,4,-0.006651187,"own data (<12 races, low confidence)",60
+Hurdle,S,Sellers/Other,4,Older (4yo+),Fillies & Mares,1,0.081924149,"own data (<12 races, low confidence)",53
+Hurdle,S,Sellers/Other,4,Older (4yo+),Mares only,1,0.10409643,"own data (<12 races, low confidence)",51
+Hurdle,W,Seller,4,"Juvenile (age-restricted, combined)",Open,5,0.082726729,"own data (<12 races, low confidence)",52
+Hurdle,W,Seller,4,Older (4yo+),Open,10,0.067677458,"own data (<12 races, low confidence)",56
+Hurdle,W,Seller,5,"Juvenile (age-restricted, combined)",Open,6,-0.280016172,"own data (<12 races, low confidence)",77
+Hurdle,W,Seller,5,Older (4yo+),Open,4,-0.101574807,"own data (<12 races, low confidence)",64
+Hurdle,WA,Seller (Cond.),5,"Juvenile (age-restricted, combined)",Open,2,-0.255302054,"own data (<12 races, low confidence)",73
+Hurdle,WA,Seller (Cond.),5,Older (4yo+),Open,1,-0.198553195,"own data (<12 races, low confidence)",65
+Hurdle,X,Claiming Handicap,5,Older (4yo+),Open,17,-0.278108233,exact,74
+Hurdle,XA,Claiming Handicap (Cond.),5,"Juvenile (age-restricted, combined)",Open,5,-0.210370538,"own data (<12 races, low confidence)",66
+Hurdle,XA,Claiming Handicap (Cond.),5,Older (4yo+),Open,3,-0.221429455,"own data (<12 races, low confidence)",69
+Chase,E,Claimer,4,Older (4yo+),Open,1,0.14499651,"own data (<12 races, low confidence)",34
+Chase,G,Maiden/Novice,2,Older (4yo+),Mares only,1,0.630983754,"own data (<12 races, low confidence)",16
+Chase,G,Maiden/Novice,2,Older (4yo+),Open,20,1.27956929,exact,10
+Chase,G,Maiden/Novice,3,Older (4yo+),Fillies & Mares,1,0.413033576,"own data (<12 races, low confidence)",27
+Chase,G,Maiden/Novice,3,Older (4yo+),Open,39,0.74655279,exact,13
+Chase,G1,Grade 1,1,Older (4yo+),Open,93,2.317606271,exact,1
+Chase,G2,Grade 2,1,Older (4yo+),Fillies & Mares,2,1.796121478,"own data (<12 races, low confidence)",4
+Chase,G2,Grade 2,1,Older (4yo+),Mares only,3,1.865631528,"own data (<12 races, low confidence)",3
+Chase,G2,Grade 2,1,Older (4yo+),Open,101,1.982041241,exact,2
+Chase,GM,Maiden,2,Older (4yo+),Open,13,0.559595618,exact,20
+Chase,GM,Maiden,3,Older (4yo+),Open,27,0.354171426,exact,29
+Chase,GM,Maiden,4,Older (4yo+),Mares only,5,-0.071803068,"own data (<12 races, low confidence)",40
+Chase,GM,Maiden,4,Older (4yo+),Open,57,0.125234866,exact,35
+Chase,GM,Maiden,5,Older (4yo+),Open,109,-0.101774965,exact,42
+Chase,GM,Maiden,6,Older (4yo+),Open,27,-0.126213965,exact,44
+Chase,I,Handicap,1,Older (4yo+),Mares only,5,1.580179883,"own data (<12 races, low confidence)",6
+Chase,I,Handicap,1,Older (4yo+),Open,176,1.486667563,exact,8
+Chase,I,Handicap,2,Older (4yo+),Fillies & Mares,2,0.45143473,"own data (<12 races, low confidence)",23
+Chase,I,Handicap,2,Older (4yo+),Mares only,11,0.555438008,"own data (<12 races, low confidence)",21
+Chase,I,Handicap,2,Older (4yo+),Open,454,1.058105347,exact,11
+Chase,I,Handicap,3,Older (4yo+),Fillies & Mares,15,0.259898348,exact,32
+Chase,I,Handicap,3,Older (4yo+),Mares only,31,0.297390907,exact,31
+Chase,I,Handicap,3,Older (4yo+),Open,1304,0.717417287,exact,14
+Chase,I,Handicap,4,Older (4yo+),Fillies & Mares,48,-0.10135217,exact,41
+Chase,I,Handicap,4,Older (4yo+),Mares only,81,-0.103973461,exact,43
+Chase,I,Handicap,4,Older (4yo+),Open,1702,0.028971458,exact,37
+Chase,I,Handicap,5,Older (4yo+),Fillies & Mares,8,-0.494474323,"own data (<12 races, low confidence)",48
+Chase,I,Handicap,5,Older (4yo+),Mares only,62,-0.837593759,exact,50
+Chase,I,Handicap,5,Older (4yo+),Open,1582,-0.924942883,exact,52
+Chase,IA,Handicap (Apprentice/Conditional),2,Older (4yo+),Open,1,0.591081201,"own data (<12 races, low confidence)",18
+Chase,IA,Handicap (Apprentice/Conditional),3,Older (4yo+),Open,13,0.369873007,exact,28
+Chase,IA,Handicap (Apprentice/Conditional),4,Older (4yo+),Fillies & Mares,4,-0.070547852,"own data (<12 races, low confidence)",39
+Chase,IA,Handicap (Apprentice/Conditional),4,Older (4yo+),Open,60,-0.0299542,exact,38
+Chase,IA,Handicap (Apprentice/Conditional),5,Older (4yo+),Open,64,-0.859741068,exact,51
+Chase,IM,Handicap (Amateur),2,Older (4yo+),Open,5,0.621752669,"own data (<12 races, low confidence)",17
+Chase,IM,Handicap (Amateur),3,Older (4yo+),Open,17,0.427421467,exact,25
+Chase,IM,Handicap (Amateur),4,Older (4yo+),Open,19,0.04844817,exact,36
+Chase,IM,Handicap (Amateur),5,Older (4yo+),Open,6,-0.28497029,"own data (<12 races, low confidence)",46
+Chase,L,Listed,1,Older (4yo+),Fillies & Mares,20,1.519951394,exact,7
+Chase,L,Listed,1,Older (4yo+),Mares only,21,1.483359549,exact,9
+Chase,L,Listed,1,Older (4yo+),Open,17,1.725427347,exact,5
+Chase,P,Novice,2,Older (4yo+),Fillies & Mares,1,0.570304467,"own data (<12 races, low confidence)",19
+Chase,P,Novice,2,Older (4yo+),Open,25,1.030161916,exact,12
+Chase,P,Novice,3,Older (4yo+),Fillies & Mares,8,0.421939347,"own data (<12 races, low confidence)",26
+Chase,P,Novice,3,Older (4yo+),Mares only,6,0.333342016,"own data (<12 races, low confidence)",30
+Chase,P,Novice,3,Older (4yo+),Open,98,0.6344273,exact,15
+Chase,PM,Novice (Maiden),2,Older (4yo+),Open,5,0.474177354,"own data (<12 races, low confidence)",22
+Chase,PM,Novice (Maiden),4,Older (4yo+),Open,15,-0.266538285,exact,45
+Chase,PM,Novice (Maiden),5,Older (4yo+),Open,31,-0.491783853,exact,47
+Chase,PM,Novice (Maiden),6,Older (4yo+),Open,6,-0.657995696,"own data (<12 races, low confidence)",49
+Chase,S,Sellers/Other,3,Older (4yo+),Open,1,0.451127277,"own data (<12 races, low confidence)",24
+Chase,X,Claiming Handicap,4,Older (4yo+),Open,2,0.155450073,"own data (<12 races, low confidence)",33
+Bumper,G,Maiden/Novice,1,"Juvenile (age-restricted, combined)",Fillies & Mares,1,1.84944775,"own data (<12 races, low confidence)",5
+Bumper,G,Maiden/Novice,2,"Juvenile (age-restricted, combined)",Open,1,0.542107865,"own data (<12 races, low confidence)",15
+Bumper,G,Maiden/Novice,2,Young (age-capped),Fillies & Mares,12,0.689746609,exact,12
+Bumper,G,Maiden/Novice,2,Young (age-capped),Open,32,1.414894856,exact,8
+Bumper,G,Maiden/Novice,3,"Juvenile (age-restricted, combined)",Fillies & Mares,4,0.377330904,"own data (<12 races, low confidence)",18
+Bumper,G,Maiden/Novice,3,"Juvenile (age-restricted, combined)",Open,3,0.575659659,"own data (<12 races, low confidence)",14
+Bumper,G,Maiden/Novice,3,Young (age-capped),Open,19,1.055015305,exact,9
+Bumper,G,Maiden/Novice,4,4yo-only,Open,13,0.042020845,exact,32
+Bumper,G,Maiden/Novice,4,"Juvenile (age-restricted, combined)",Fillies & Mares,2,0.054924982,"own data (<12 races, low confidence)",31
+Bumper,G,Maiden/Novice,4,"Juvenile (age-restricted, combined)",Fillies only,4,-0.225153849,"own data (<12 races, low confidence)",39
+Bumper,G,Maiden/Novice,4,"Juvenile (age-restricted, combined)",Open,7,0.150771487,"own data (<12 races, low confidence)",28
+Bumper,G,Maiden/Novice,4,Young (age-capped),Fillies & Mares,18,0.000296045,exact,34
+Bumper,G,Maiden/Novice,4,Young (age-capped),Open,132,0.012791126,exact,33
+Bumper,G,Maiden/Novice,5,3yo-only,Open,29,-0.410855921,exact,49
+Bumper,G,Maiden/Novice,5,4yo-only,Open,17,-0.167305242,exact,37
+Bumper,G,Maiden/Novice,5,"Juvenile (age-restricted, combined)",Fillies only,14,-0.359373348,exact,48
+Bumper,G,Maiden/Novice,5,"Juvenile (age-restricted, combined)",Mares only,1,-0.264527616,"own data (<12 races, low confidence)",44
+Bumper,G,Maiden/Novice,5,Older (4yo+),Fillies & Mares,1,-0.257064134,"own data (<12 races, low confidence)",43
+Bumper,G,Maiden/Novice,5,Young (age-capped),Fillies & Mares,57,-0.245731273,exact,41
+Bumper,G,Maiden/Novice,5,Young (age-capped),Open,469,0.495510788,exact,16
+Bumper,G1,Grade 1,1,"Juvenile (age-restricted, combined)",Open,4,2.37708172,"own data (<12 races, low confidence)",1
+Bumper,G1,Grade 1,2,"Juvenile (age-restricted, combined)",Open,1,0.759456293,"own data (<12 races, low confidence)",10
+Bumper,G2,Grade 2,1,"Juvenile (age-restricted, combined)",Fillies & Mares,5,2.008596489,"own data (<12 races, low confidence)",3
+Bumper,G2,Grade 2,1,"Juvenile (age-restricted, combined)",Open,5,2.180501907,"own data (<12 races, low confidence)",2
+Bumper,GM,Maiden,3,"Juvenile (age-restricted, combined)",Open,4,0.270554239,"own data (<12 races, low confidence)",22
+Bumper,GM,Maiden,4,"Juvenile (age-restricted, combined)",Fillies & Mares,2,0.254200551,"own data (<12 races, low confidence)",23
+Bumper,GM,Maiden,4,Young (age-capped),Open,13,0.341813157,exact,19
+Bumper,GM,Maiden,5,Young (age-capped),Fillies & Mares,12,0.142317512,exact,29
+Bumper,GM,Maiden,5,Young (age-capped),Open,44,-0.007118808,exact,35
+Bumper,L,Listed,1,"Juvenile (age-restricted, combined)",Open,5,1.641002749,"own data (<12 races, low confidence)",7
+Bumper,L,Listed,1,Young (age-capped),Fillies & Mares,12,1.710900211,exact,6
+Bumper,L,Listed,1,Young (age-capped),Open,17,1.898386306,exact,4
+Bumper,P,Novice,2,"Juvenile (age-restricted, combined)",Open,2,0.666072364,"own data (<12 races, low confidence)",13
+Bumper,P,Novice,4,"Juvenile (age-restricted, combined)",Fillies & Mares,9,0.180211526,"own data (<12 races, low confidence)",24
+Bumper,P,Novice,4,Young (age-capped),Open,30,0.340017386,exact,20
+Bumper,P,Novice,5,"Juvenile (age-restricted, combined)",Fillies & Mares,2,-0.356706804,"own data (<12 races, low confidence)",47
+Bumper,P,Novice,5,"Juvenile (age-restricted, combined)",Open,7,-0.083982102,"own data (<12 races, low confidence)",36
+Bumper,P,Novice,5,Older (4yo+),Open,1,-0.185919474,"own data (<12 races, low confidence)",38
+Bumper,P,Novice,5,Young (age-capped),Fillies & Mares,22,-0.234799882,exact,40
+Bumper,P,Novice,5,Young (age-capped),Open,137,0.296188904,exact,21
+Bumper,PM,Novice (Maiden),2,"Juvenile (age-restricted, combined)",Open,1,0.72364545,"own data (<12 races, low confidence)",11
+Bumper,PM,Novice (Maiden),3,"Juvenile (age-restricted, combined)",Fillies & Mares,1,0.428711103,"own data (<12 races, low confidence)",17
+Bumper,PM,Novice (Maiden),4,"Juvenile (age-restricted, combined)",Fillies & Mares,1,0.164139453,"own data (<12 races, low confidence)",26
+Bumper,PM,Novice (Maiden),4,"Juvenile (age-restricted, combined)",Fillies only,1,0.151315461,"own data (<12 races, low confidence)",27
+Bumper,PM,Novice (Maiden),4,"Juvenile (age-restricted, combined)",Open,2,0.13009663,"own data (<12 races, low confidence)",30
+Bumper,PM,Novice (Maiden),5,"Juvenile (age-restricted, combined)",Fillies & Mares,1,-0.293059619,"own data (<12 races, low confidence)",45
+Bumper,PM,Novice (Maiden),5,"Juvenile (age-restricted, combined)",Open,3,-0.245742302,"own data (<12 races, low confidence)",42
+Bumper,PM,Novice (Maiden),5,Young (age-capped),Open,12,0.178411164,exact,25
+Bumper,S,Sellers/Other,5,"Juvenile (age-restricted, combined)",Open,2,-0.318234779,"own data (<12 races, low confidence)",46

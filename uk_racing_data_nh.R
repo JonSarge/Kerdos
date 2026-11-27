@@ -155,19 +155,19 @@ jockey_rating_mins <- jockey_ratings %>%
 #### class rank data prep ####
 # 
 # # class ranks
-# class_rankings_old <- read.csv('gb_racing_raceclass.csv')
+class_rankings <- read.csv('gb_racing_raceclass_nh.csv')
 # # class rank group summary
 # class_ranking_groups <- read.csv("class_ranks.csv", comment.char="#",
 #                         fileEncoding = "latin1")
 # 
-# class_ranking_groups_fill <- class_ranking_groups %>%
-#   group_by(race_type, raceclass, age_category) %>%
-#   mutate(blended_score_ave=mean(blended_score),
-#          rank_median=median(rank),
-#          raceclass=as.factor(raceclass)) %>%
-#   ungroup() %>%
-#   select(racecode, raceclass, age_category, rank_median, blended_score_ave) %>%
-#   unique()
+class_ranking_groups_fill <- class_rankings %>%
+   group_by(racetype, raceclass, age_category) %>%
+   mutate(blended_score_ave=mean(blended_score),
+          rank_median=median(own_rank),
+          raceclass=as.factor(raceclass)) %>%
+   ungroup() %>%
+   select(racecode, raceclass, age_category, rank_median, blended_score_ave) %>%
+   unique()
 # 
 # class_data <- gb_data_recent %>%
 #   select(raceid, racecode, raceclass, horseage, horsegender) %>%
@@ -451,7 +451,7 @@ pre_model_data <- gb_jumps_all_cols %>%
          runners_under_5=sum(bsp_60<5),
          raceclass_5_6=fct(ifelse(raceclass %in% c(5, 6), 1, 0))) %>% ungroup() %>%
     # join class data
-  #left_join(., class_rankings_old %>% select(raceid, category_rank, category_blended_score), by='raceid') %>%
+  left_join(., class_rankings, by=c('racetype', 'racecode', 'raceclass', 'age_category', 'sex_category')) %>%
   #left_join(., class_ranking_groups_fill, by=c('racecode', 'raceclass', 'age_category')) %>% 
   mutate(#category_rank=ifelse(is.na(category_rank), rank_median, category_rank),
          #category_blended_score=ifelse(is.na(category_blended_score), blended_score_ave, category_blended_score),
